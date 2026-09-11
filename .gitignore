@@ -3,3 +3,9 @@ output/
 *.log
 .DS_Store
 .claude/
+tokens.json
+tidal-tokens.json
+
+
+.env
+.env.*
