@@ -11,7 +11,10 @@
    start and fixture tutorial. Never run a release verification with
    `--apply`.
 
-The CI and dependency-review workflows are required pre-release gates.
+The CI workflow, Dependabot alerts, and secret scan are required pre-release
+gates. GitHub Dependency Review is optional until the repository integration is
+available; a separate OSV scanner must be added before treating dependency
+auditing as complete.
 Publishing credentials must be stored in the hosting provider's secret store,
 never in repository files. The workflow intentionally creates a release archive
 but does not run `npm publish`; publication is a maintainer-controlled action.

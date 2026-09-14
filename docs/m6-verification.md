@@ -22,10 +22,11 @@ Expected results:
   SQLite database, or `output/` data.
 - The npm publish dry run completes without authentication and shows the same
   sanitized payload.
-- Dependency auditing is a release prerequisite. Bun 1.3 requires an explicit
-  security scanner configuration for `bun pm scan`; until that scanner is
-  configured in CI, the tagged release must be blocked rather than treating
-  the audit as passed.
+- Dependency auditing is a release prerequisite. Dependabot alerts and update
+  pull requests are enabled for this repository. GitHub's `dependency-review`
+  action is intentionally not a required check because the repository's GitHub
+  integration reports it as unsupported even with Dependency Graph enabled;
+  enable that integration or add an OSV scanner before a public release.
 - CI runs repository secret scanning with Gitleaks. A finding blocks the
   release and must be removed or rotated before publication.
 - README links resolve to architecture, privacy, security, credential,
