@@ -1,0 +1,8 @@
+.env
+.env.*
+output/
+.git/
+.github/
+test/
+*.sqlite
+*.tgz

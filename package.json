@@ -1,13 +1,26 @@
 {
-  "name": "bandcamp-wishlist-export",
+  "name": "bandcamp-wishlist-tidal",
   "version": "0.1.0",
-  "description": "Export a public Bandcamp wishlist to a single easy-to-parse JSON file",
+  "description": "Safely match a public Bandcamp wishlist with a TIDAL library",
   "type": "module",
-  "private": true,
   "license": "MIT",
+  "bin": {
+    "bandcamp-tidal-sync": "scripts/main.ts"
+  },
+  "files": [
+    "scripts",
+    "src",
+    "schemas",
+    "README.md",
+    "LICENSE",
+    "docs"
+  ],
+  "engines": {
+    "bun": ">=1.3.0"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/jzstern/bandcamp-wishlist-export.git"
+    "url": "git+https://github.com/nakedape2000/bandcamp-wishlist-tidal.git"
   },
   "keywords": [
     "bandcamp",
@@ -18,8 +31,30 @@
   ],
   "scripts": {
     "export": "bun run src/cli.ts",
+    "dry-run:fixture": "bun run scripts/fixture-dry-run.ts",
+    "doctor": "bun run scripts/doctor.ts",
+    "import:output": "bun run scripts/import-output.ts",
+    "sync": "bun run scripts/main.ts",
+    "sync:init": "bun run sync -- init",
+    "scan:bandcamp": "bun run scripts/scan-bandcamp.ts",
+    "schedule:print": "bun run scripts/schedule.ts",
+    "review:web": "bun run scripts/review-server.ts",
+    "verify:m3": "bun test && TMPDIR=/private/tmp BUN_INSTALL_CACHE_DIR=/private/tmp/bun-install-cache bunx --bun tsc --noEmit && biome check src/review.ts src/review-server.ts scripts/review-cli.ts scripts/review-server.ts scripts/main.ts test/m3.test.ts web/review && bun run sync -- review list --database :memory: && bun run sync -- review pending --database :memory:",
+    "verify:m4": "bun test && TMPDIR=/private/tmp BUN_INSTALL_CACHE_DIR=/private/tmp/bun-install-cache bunx --bun tsc --noEmit && biome check src/review.ts src/review-server.ts src/sync-store.ts src/write-orchestrator.ts scripts/review-cli.ts scripts/write-cli.ts scripts/main.ts tidal-scan.ts test/m3.test.ts test/m4.test.ts web/review && bun run sync -- review pending --database :memory:",
+    "verify:m5": "bun test && TMPDIR=/private/tmp BUN_INSTALL_CACHE_DIR=/private/tmp/bun-install-cache bunx --bun tsc --noEmit && bunx biome check src/config.ts src/match-cache.ts src/oauth.ts src/terminal.ts scripts/modern-cli.ts scripts/main.ts scripts/doctor.ts scripts/review-cli.ts scripts/scan-bandcamp.ts scripts/sync.ts scripts/write-cli.ts scripts/release-check.ts tidal-auth.ts tidal-export-library.ts tidal-scan.ts test/m5.test.ts test/oauth.test.ts",
+    "verify:m1": "bun test && TMPDIR=/private/tmp BUN_INSTALL_CACHE_DIR=/private/tmp/bun-install-cache bunx --bun tsc --noEmit && rm -f /tmp/bcts-m1.sqlite && bun run sync -- --database /tmp/bcts-m1.sqlite && bun run sync -- --database /tmp/bcts-m1.sqlite",
+    "verify:m2": "bun test && TMPDIR=/private/tmp BUN_INSTALL_CACHE_DIR=/private/tmp/bun-install-cache bunx --bun tsc --noEmit && git diff --check",
+    "verify:m0": "bun test && bun run check:m0 && TMPDIR=/private/tmp BUN_INSTALL_CACHE_DIR=/private/tmp/bun-install-cache bunx --bun tsc --noEmit && bun run doctor && bun run import:output && bun run dry-run:fixture && bun run tidal-add-pilot.ts && bun run tidal-add-remaining.ts",
+    "tidal:auth": "bun run tidal-auth.ts",
+    "tidal:export-library": "bun run tidal-export-library.ts",
+    "tidal:scan": "bun run tidal-scan.ts",
+    "tidal:plan-additions": "bun run scripts/plan-additions.ts",
+    "tidal:add-pilot": "bun run tidal-add-pilot.ts",
+    "tidal:add-remaining": "bun run tidal-add-remaining.ts",
     "test": "bun test",
-    "check": "biome check ."
+    "check:m0": "biome check src scripts test/m0.test.ts tidal-add-pilot.ts tidal-add-remaining.ts tidal-export-library.ts tidal-compare-library.ts tidal-create-pilot-manifest.ts tidal-create-remaining-manifest.ts schemas",
+    "check": "biome check .",
+    "release:check": "bun run scripts/release-check.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.4",

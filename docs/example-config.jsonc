@@ -1,0 +1,29 @@
+// Copy this file to a private location and run `sync init` to generate a full config.
+// Never put access tokens or client secrets here.
+{
+  "version": 1,
+  "storage": {
+    "database": "~/.config/bandcamp-tidal-sync/data.sqlite",
+    "output_dir": "~/.config/bandcamp-tidal-sync/output"
+  },
+  "providers": {
+    "bandcamp": {
+      "wishlist_source": "browser-export",
+      "username": "YOUR_BANDCAMP_USERNAME"
+    },
+    "tidal": { "country_code": "DE", "locale": "en-US", "collection": "me" }
+  },
+  "matching": {
+    "high_confidence_threshold": 0.9,
+    "review_threshold": 0.7,
+    "cache_ttl_days": 30
+  },
+  "sync": {
+    "batch_size": 25,
+    "max_additions_per_run": 250,
+    "delay_between_batches_ms": 2000,
+    "require_confirmation": true,
+    "verify_after_apply": true
+  },
+  "security": { "bind_host": "127.0.0.1", "dry_run_by_default": true }
+}

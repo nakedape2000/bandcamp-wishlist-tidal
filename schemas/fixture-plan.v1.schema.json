@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jzstern/bandcamp-wishlist-export/schemas/fixture-plan.v1.schema.json",
+  "title": "Fixture Dry-Run Plan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "mode",
+    "source",
+    "fan_id",
+    "item_count",
+    "provider_writes",
+    "items"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "mode": { "const": "fixture-dry-run" },
+    "source": { "const": "bandcamp" },
+    "fan_id": { "type": "integer", "minimum": 1 },
+    "item_count": { "type": "integer", "minimum": 0 },
+    "provider_writes": { "const": 0 },
+    "items": { "type": "array" }
+  }
+}

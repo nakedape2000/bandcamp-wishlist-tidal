@@ -1,0 +1,8 @@
+# Security, release, and provider changes require maintainer review.
+* @nakedape2000
+.github/ @nakedape2000
+SECURITY.md @nakedape2000
+Dockerfile @nakedape2000
+src/oauth.ts @nakedape2000
+src/secrets.ts @nakedape2000
+src/tidal.ts @nakedape2000

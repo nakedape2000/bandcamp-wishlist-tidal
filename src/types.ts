@@ -11,6 +11,7 @@ export interface WishlistItem {
 }
 
 export interface WishlistSnapshot {
+  schema_version: 1;
   source: "bandcamp";
   username: string;
   fanId: number;
