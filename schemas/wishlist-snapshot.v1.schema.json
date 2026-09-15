@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jzstern/bandcamp-wishlist-export/schemas/wishlist-snapshot.v1.schema.json",
+  "title": "Bandcamp Wishlist Snapshot v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "username",
+    "fanId",
+    "fetchedAt",
+    "count",
+    "items"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "source": { "const": "bandcamp" },
+    "username": { "type": "string", "minLength": 1 },
+    "fanId": { "type": "integer", "minimum": 1 },
+    "fetchedAt": { "type": "string", "format": "date-time" },
+    "count": { "type": "integer", "minimum": 0 },
+    "items": { "type": "array" }
+  }
+}

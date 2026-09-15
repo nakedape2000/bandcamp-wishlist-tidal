@@ -50,6 +50,7 @@ async function main(): Promise<void> {
   process.stdout.write("\n");
 
   const snapshot: WishlistSnapshot = {
+    schema_version: 1,
     source: "bandcamp",
     username,
     fanId,

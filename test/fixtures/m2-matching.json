@@ -1,0 +1,15 @@
+[
+  {
+    "name": "unicode-and-deluxe",
+    "input": { "artist": "Beyonce", "title": "Renaissance" },
+    "candidate": { "id": "fixture-1", "artist": "Beyoncé", "title": "Renaissance (Deluxe Edition)" },
+    "expected": "high_confidence"
+  },
+  {
+    "name": "alias-artist",
+    "input": { "artist": "The Weeknd", "title": "Dawn FM" },
+    "candidate": { "id": "fixture-2", "artist": "Weeknd", "title": "Dawn FM" },
+    "aliases": { "the weeknd": ["Weeknd"] },
+    "expected": "high_confidence"
+  }
+]

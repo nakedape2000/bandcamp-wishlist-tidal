@@ -1,3 +1,4 @@
+import { requestJson } from "./http";
 import {
   extractDataBlob,
   newestToken,
@@ -9,24 +10,16 @@ import type { RawApiItem, WishlistItem } from "./types";
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36";
 const WISHLIST_API = "https://bandcamp.com/api/fancollection/1/wishlist_items";
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-async function postJson<T>(
-  url: string,
-  body: unknown,
-  attempt = 1,
-): Promise<T> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "User-Agent": UA },
-    body: JSON.stringify(body),
-  });
-  if ((res.status === 429 || res.status >= 500) && attempt <= 3) {
-    await sleep(500 * 2 ** (attempt - 1));
-    return postJson<T>(url, body, attempt + 1);
-  }
-  if (!res.ok) throw new Error(`Bandcamp API ${res.status} for ${url}`);
-  return (await res.json()) as T;
+async function postJson<T>(url: string, body: unknown): Promise<T> {
+  return requestJson<T>(
+    url,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "User-Agent": UA },
+      body: JSON.stringify(body),
+    },
+    { retries: 3, baseDelayMs: 500 },
+  );
 }
 
 export async function resolveFanId(username: string): Promise<number> {
@@ -67,7 +60,7 @@ export async function fetchAllWishlistItems(
     onProgress?.(items.length);
     if (!page.more_available || !page.items?.length) break;
     token = page.last_token;
-    await sleep(250);
+    await new Promise((resolve) => setTimeout(resolve, 250));
   }
   return items;
 }

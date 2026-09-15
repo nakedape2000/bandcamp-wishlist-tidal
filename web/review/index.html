@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>BCTS Review Desk</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand-block">
+        <span class="brand-mark" aria-hidden="true">B/T</span>
+        <div>
+          <strong>Review desk</strong>
+          <span>Bandcamp to TIDAL</span>
+        </div>
+      </div>
+      <div class="header-status" aria-live="polite">
+        <span class="safety-dot" aria-hidden="true"></span>
+        <span>Review only</span>
+        <b>0 provider writes</b>
+      </div>
+    </header>
+
+    <nav class="view-tabs" aria-label="Views">
+      <button class="view-tab is-active" type="button" data-view="queue">
+        Review queue <span id="queue-count">0</span>
+      </button>
+      <button class="view-tab" type="button" data-view="pending">
+        Pending additions <span id="pending-count">0</span>
+      </button>
+    </nav>
+
+    <section class="filter-bar" aria-label="Review filters">
+      <label class="search-field">
+        <span class="visually-hidden">Search artist or album</span>
+        <span aria-hidden="true">⌕</span>
+        <input id="search" type="search" placeholder="Artist or album" autocomplete="off" />
+      </label>
+      <label>
+        <span>Status</span>
+        <select id="status-filter">
+          <option value="reviewable">Needs attention</option>
+          <option value="all">All matches</option>
+          <option value="needs_review">Needs review</option>
+          <option value="low_confidence">Low confidence</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="deferred">Deferred</option>
+          <option value="unavailable">Unavailable</option>
+        </select>
+      </label>
+      <label>
+        <span>Minimum score</span>
+        <input id="score-filter" type="number" min="0" max="100" step="1" placeholder="0" />
+      </label>
+      <div class="filter-summary" id="filter-summary">Loading library...</div>
+    </section>
+
+    <main class="workspace" id="queue-view">
+      <aside class="queue-panel" aria-label="Review items">
+        <div id="queue" class="queue-list" role="listbox" aria-label="Albums to review"></div>
+      </aside>
+      <section class="detail-panel" id="detail" aria-live="polite">
+        <div class="empty-state">
+          <span class="empty-glyph" aria-hidden="true">◎</span>
+          <h1>Select a release</h1>
+          <p>Its Bandcamp source and TIDAL candidates will appear here.</p>
+        </div>
+      </section>
+    </main>
+
+    <main class="pending-view" id="pending-view" hidden>
+      <header class="pending-header">
+        <div>
+          <span class="eyebrow">Dry-run diff</span>
+          <h1>Proposed library additions</h1>
+        </div>
+        <dl class="plan-stats">
+          <div><dt>Current library</dt><dd id="library-count">0</dd></div>
+          <div><dt>To add</dt><dd id="addition-count">0</dd></div>
+          <div><dt>Writes now</dt><dd>0</dd></div>
+        </dl>
+      </header>
+      <div id="pending-list" class="pending-list"></div>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <dialog id="edit-dialog">
+      <form method="dialog" id="edit-form">
+        <header>
+          <div>
+            <span class="eyebrow">Matching metadata</span>
+            <h2 class="dialog-title">Edit source fields</h2>
+          </div>
+          <button class="icon-button" id="close-dialog" type="button" aria-label="Close dialog" title="Close">×</button>
+        </header>
+        <label class="dialog-label">Artist<input name="artist" required /></label>
+        <label class="dialog-label">Album title<input name="title" required /></label>
+        <label class="dialog-label">Label hint<input name="label" /></label>
+        <footer>
+          <button class="text-button" id="cancel-edit" type="button">Cancel</button>
+          <button class="primary-button" id="save-edit" type="submit">Save metadata</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <template id="empty-template">
+      <div class="empty-state">
+        <span class="empty-glyph" aria-hidden="true">✓</span>
+        <h1>Queue is clear</h1>
+        <p>No releases match the current filters.</p>
+      </div>
+    </template>
+  </body>
+</html>

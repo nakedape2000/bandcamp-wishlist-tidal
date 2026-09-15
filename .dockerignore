@@ -1,0 +1,9 @@
+.env
+.env.*
+.git
+.github
+output
+*.sqlite
+*.tgz
+node_modules
+test
