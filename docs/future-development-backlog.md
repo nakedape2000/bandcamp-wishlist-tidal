@@ -422,10 +422,10 @@ The repository history has been rewritten to remove personal `output/` data,
 and GitHub Support ticket `#4759477` is open for removal of the remaining cached
 PR #1 references and unreachable objects. Keep the repository private until
 Support confirms that purge. An OSV-based dependency audit is configured for
-pull requests, `main`, weekly runs, and release builds. The remaining acceptance
-steps are confirmation of that check in GitHub Actions, restoration of the
-public repository security settings, and a maintainer-controlled `v0.1.0`
-release with published signed artifacts.
+pull requests, `main`, weekly runs, and release builds, and has passed on the
+cleaned `main` history. The remaining acceptance steps are Support confirmation,
+restoration of the public repository security settings, and a
+maintainer-controlled `v0.1.0` release with published signed artifacts.
 
 **Goal:** Make the project understandable, secure, and installable by other users.
 
@@ -640,9 +640,9 @@ applying → retryable_failure | unknown_outcome | permanent_failure
 
 The highest-value next sprint should be:
 
-1. While GitHub Support ticket `#4759477` is pending, keep the repository private
-   and confirm the OSV-based dependency audit in GitHub Actions; it replaces the
-   unavailable GitHub Dependency Review check.
+1. While GitHub Support ticket `#4759477` is pending, keep the repository private.
+   The OSV-based replacement for the unavailable GitHub Dependency Review check
+   is implemented and confirmed passing on `main`.
 2. After Support confirms removal of the cached PR #1 references and old objects,
    make the repository public again and restore the documented repository
    security and branch-protection settings.
