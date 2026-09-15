@@ -4,6 +4,7 @@ node_modules/
 .claude/
 tokens.json
 tidal-tokens.json
+output/
 
 
 .env
