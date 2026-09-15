@@ -16,7 +16,8 @@ The CI workflow, Dependabot alerts, secret scan, and OSV dependency audit are
 required pre-release gates. GitHub Dependency Review is unavailable, so
 `Dependency audit / osv-scan` scans `bun.lock` for every pull request and `main`
 update, on a weekly schedule, and again before the release workflow packages an
-archive.
+archive. The release workflow also repeats the tests and secret scan on the
+tagged commit before packaging, attestation, or publication.
 Publishing credentials must be stored in the hosting provider's secret store,
 never in repository files. The workflow intentionally creates a release archive
 but does not run `npm publish`; publication is a maintainer-controlled action.

@@ -10,6 +10,19 @@ permissions:
   attestations: write
 
 jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   dependency-audit:
     permissions:
       actions: read
@@ -25,7 +38,7 @@ jobs:
       fail-on-vuln: true
 
   build-and-attest:
-    needs: dependency-audit
+    needs: [secret-scan, dependency-audit]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

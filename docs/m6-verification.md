@@ -25,9 +25,10 @@ Expected results:
 - The `Dependency audit / osv-scan` check passes. It scans the resolved
   `bun.lock` with OSV-Scanner on pull requests, pushes to `main`, manual runs,
   and a weekly schedule. The release workflow runs the same blocking audit
-  before packaging. Results remain available as workflow logs and artifacts;
-  SARIF upload is disabled so the check also works while the repository is
-  private without GitHub Advanced Security.
+  together with the test suite and secret scan before packaging. Results remain
+  available as workflow logs and artifacts; SARIF upload is disabled so the
+  check also works while the repository is private without GitHub Advanced
+  Security.
 - Dependabot alerts and update pull requests remain enabled. GitHub's
   `dependency-review` action is intentionally not required because the
   repository's GitHub integration reports it as unsupported even with
