@@ -10,7 +10,35 @@ permissions:
   attestations: write
 
 jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-audit:
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@c7c7bcb0773cc4678a674ada03a66cc5c4325476 # v2.6.0
+    with:
+      scan-args: |-
+        --include-git-root
+        --recursive
+        ./
+      upload-sarif: false
+      fail-on-vuln: true
+
   build-and-attest:
+    needs: [secret-scan, dependency-audit]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

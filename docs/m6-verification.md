@@ -22,11 +22,17 @@ Expected results:
   SQLite database, or `output/` data.
 - The npm publish dry run completes without authentication and shows the same
   sanitized payload.
-- Dependency auditing is a release prerequisite. Dependabot alerts and update
-  pull requests are enabled for this repository. GitHub's `dependency-review`
-  action is intentionally not a required check because the repository's GitHub
-  integration reports it as unsupported even with Dependency Graph enabled;
-  enable that integration or add an OSV scanner before a public release.
+- The `Dependency audit / osv-scan` check passes. It scans the resolved
+  `bun.lock` with OSV-Scanner on pull requests, pushes to `main`, manual runs,
+  and a weekly schedule. The release workflow runs the same blocking audit
+  together with the test suite and secret scan before packaging. Results remain
+  available as workflow logs and artifacts; SARIF upload is disabled so the
+  check also works while the repository is private without GitHub Advanced
+  Security.
+- Dependabot alerts and update pull requests remain enabled. GitHub's
+  `dependency-review` action is intentionally not required because the
+  repository's GitHub integration reports it as unsupported even with
+  Dependency Graph enabled.
 - CI runs repository secret scanning with Gitleaks. A finding blocks the
   release and must be removed or rotated before publication.
 - README links resolve to architecture, privacy, security, credential,
@@ -41,7 +47,9 @@ be started with `docker compose --profile scheduler up scheduler`; it runs the
 read-only scan loop and must use a private volume/config. Do not mount a token
 file into a public or shared container.
 
-M6 remains ready for acceptance until a tagged release is built, checksummed,
-and published through the documented release process. Publishing and signing
-require maintainer credentials and are intentionally not performed by this
-repository-local verification.
+M6 acceptance remains in progress while GitHub Support ticket `#4759477` is
+open for removal of cached PR #1 references left after the personal-data history
+rewrite. Keep the repository private until Support confirms the purge. A tagged
+release must then be built, checksummed, and published through the documented
+release process. Publishing and signing require maintainer credentials and are
+intentionally not performed by this repository-local verification.
