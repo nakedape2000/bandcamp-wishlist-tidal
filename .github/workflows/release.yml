@@ -29,7 +29,7 @@ jobs:
       - name: Generate checksum
         run: shasum -a 256 bandcamp-tidal-sync-*.tgz > SHA256SUMS
       - name: Attest package provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: bandcamp-tidal-sync-*.tgz
       - name: Create GitHub release
