@@ -14,14 +14,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bun run verify:m5
-      - run: bun run release:check
+      - run: BCTS_RELEASE_TAG="$GITHUB_REF_NAME" bun run release:check
       - name: Build package archive
-        run: bun pm pack --filename bandcamp-tidal-sync-${GITHUB_REF_NAME#v}.tgz
+        run: bun pm pack --filename "bandcamp-tidal-sync-${GITHUB_REF_NAME#v}.tgz"
       - name: Validate npm publish payload
         run: npm publish --dry-run --ignore-scripts
       - name: Generate checksum

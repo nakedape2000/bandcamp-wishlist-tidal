@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { loadConfig } from "../src/config";
 import { SyncStore } from "../src/sync-store";
@@ -25,6 +25,8 @@ const raw = JSON.parse(readFileSync(inputPath, "utf8")) as
   | WishlistSnapshot
   | WishlistItem[];
 const items = Array.isArray(raw) ? raw : raw.items;
+if (!Array.isArray(items))
+  throw new Error("Wishlist snapshot items must be an array.");
 const fanId = Array.isArray(raw)
   ? Number(process.env.BCTS_FAN_ID ?? 0)
   : raw.fanId;
@@ -35,6 +37,7 @@ if (!fanId)
 
 mkdirSync(dirname(databasePath), { recursive: true });
 const database = new Database(databasePath);
+if (databasePath !== ":memory:") chmodSync(databasePath, 0o600);
 const store = new SyncStore(database);
 const runId = store.startRun(mode);
 const summary = store.reconcileWishlist(fanId, items, new Date().toISOString());

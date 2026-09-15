@@ -2,9 +2,8 @@
 
 ## Verification
 
-- [ ] `bun test`
-- [ ] `bunx tsc --noEmit`
-- [ ] `bun run check`
+- [ ] `bun run verify:m5`
+- [ ] `bun run release:check`
 - [ ] No real provider writes were used
 
 ## Safety / privacy impact

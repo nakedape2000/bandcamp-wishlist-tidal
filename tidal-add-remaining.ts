@@ -390,6 +390,7 @@ console.log(
 
 const endpoint = `${apiBase}${collectionPath}`;
 
+let runFailed = false;
 for (const [index, batch] of batches.entries()) {
   const albumIds = batch.map((album) => String(album.tidal_album_id));
 
@@ -449,8 +450,7 @@ for (const [index, batch] of batches.entries()) {
 
     console.error(`  Batch failed: ${batchRecord.error}`);
     syncStore.completeBatch(syncRunId, batchRecord.batch_number, false);
-    syncStore.finishRun(syncRunId, "failed");
-    database.close();
+    runFailed = true;
 
     existingResults.batches.push(batchRecord);
 
@@ -486,7 +486,7 @@ for (const [index, batch] of batches.entries()) {
   }
 }
 
-syncStore.finishRun(syncRunId, "completed");
+syncStore.finishRun(syncRunId, runFailed ? "failed" : "completed");
 database.close();
 
 const finalSuccessfulIds = new Set<string>();

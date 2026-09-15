@@ -517,7 +517,7 @@ Storage layer ── SQLite database
 Audit/reporting layer
 ```
 
-### Core domain entities
+## Core domain entities
 
 - `SourceItem`: a Bandcamp wishlist record.
 - `Candidate`: a possible TIDAL album match.
@@ -634,15 +634,24 @@ applying → retryable_failure | unknown_outcome | permanent_failure
 
 The highest-value next sprint should be:
 
-1. Refactor shared HTTP/OAuth/pagination code into provider adapters.
-2. Add SQLite state and import the existing JSON artifacts.
-3. Implement `sync doctor`, `sync status`, and `sync scan --incremental`.
-4. Add a true immutable `sync plan` and `sync apply` boundary.
-5. Add token redaction, `.gitignore`, configuration validation, and a security review.
-6. Add tests around the exact TIDAL pagination and batch-write behavior already validated manually.
-7. Build the first interactive CLI review command before starting the web UI.
+1. Complete M6 acceptance: merge the release branch, create the maintainer-approved
+   `v0.1.0` tag, and verify the checksum, provenance attestation, and downloadable
+   package produced by the release workflow.
+2. Install the packaged CLI in fresh supported macOS and Linux environments and
+   run the credential-free tutorial, `sync doctor`, and dry-run workflow.
+3. Start M7 with a dashboard showing the last run, pending reviews, proposed
+   additions, failures, and the next scheduled scan.
+4. Add explicit “Scan now”, “Review matches”, and “Create plan” actions while
+   keeping all provider writes disabled in those flows.
+5. Add the separate, conspicuous apply flow backed by the existing immutable-plan
+   and confirmation boundary.
+6. Add container health/readiness endpoints, database backup/export, and an
+   activity log with downloadable reports.
+7. Add opt-in scheduling and notifications only after the dashboard and recovery
+   paths have acceptance coverage.
 
-This order turns the proven script into a reliable recurring tool before investing in presentation features.
+This order closes the public-release gate before extending the optional local web
+application, while retaining the CLI as the canonical automation surface.
 
 ## Definition of done for recurring use
 

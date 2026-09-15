@@ -71,6 +71,25 @@ describe("write orchestration", () => {
     expect(() => persistWritePlan(store, plan)).toThrow(/immutable/i);
   });
 
+  test("rolls back a write plan when an item violates uniqueness", () => {
+    const { store } = prepared();
+    expect(() =>
+      store.createWritePlan({
+        planId: "duplicate-plan",
+        createdAt: "2026-09-13T01:00:00.000Z",
+        provider: "tidal",
+        collection: "me",
+        maxAdditions: 10,
+        items: [
+          { bandcampItemId: 7, tidalAlbumId: "t1", source: { position: 0 } },
+          { bandcampItemId: 8, tidalAlbumId: "t1", source: { position: 1 } },
+        ],
+        payload: { planId: "duplicate-plan" },
+      }),
+    ).toThrow();
+    expect(store.getWritePlan("duplicate-plan")).toBeNull();
+  });
+
   test("derives stable batches and idempotency keys", () => {
     const { reviews } = prepared();
     const plan = buildWritePlan(

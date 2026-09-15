@@ -23,10 +23,12 @@ Expected: dependencies do not change `bun.lock`; all tests pass; typecheck exits
 ## Safety checks
 
 ```bash
-node -e 'const p=require("/tmp/m0-plan-a.json"); if(p.provider_writes!==0) process.exit(1); console.log(p.item_count, p.provider_writes)'
+bun -e 'const p=await Bun.file("/tmp/m0-plan-a.json").json(); if(p.provider_writes!==0) process.exit(1); console.log(p.item_count, p.provider_writes)'
 git check-ignore .env output/tidal-tokens.json
-stat -f '%Sp %N' .env output/tidal-tokens.json output/imported-state.v1.json
-stat -f '%Sp %N' output/tidal-add-pilot-result.json output/tidal-add-pilot-request.json output/tidal-add-remaining-results.json
+# macOS
+for f in .env output/tidal-tokens.json output/imported-state.v1.json output/tidal-add-pilot-result.json output/tidal-add-pilot-request.json output/tidal-add-remaining-results.json; do test -e "$f" && stat -f '%Sp %N' "$f"; done
+# Linux
+for f in .env output/tidal-tokens.json output/imported-state.v1.json output/tidal-add-pilot-result.json output/tidal-add-pilot-request.json output/tidal-add-remaining-results.json; do test -e "$f" && stat -c '%A %n' "$f"; done
 git diff --check
 ```
 

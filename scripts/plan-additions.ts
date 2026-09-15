@@ -1,7 +1,7 @@
 import { chmodSync, readFileSync, writeFileSync } from "node:fs";
 import {
-  createAdditionPlan,
   type AdditionCandidate,
+  createAdditionPlan,
 } from "../src/addition-plan";
 
 const candidatesPath = "./output/high-confidence-to-save.json";

@@ -1,6 +1,8 @@
 import { Database } from "bun:sqlite";
 import { randomBytes } from "node:crypto";
 import { chmodSync, mkdirSync } from "node:fs";
+import { isIP } from "node:net";
+import { networkInterfaces } from "node:os";
 import { dirname, join } from "node:path";
 import { loadConfig } from "./config";
 import { type ReviewAction, ReviewService } from "./review";
@@ -16,8 +18,15 @@ export function createReviewHandler(
   sessionToken: string,
   csrfToken: string,
   resolveTidalArtwork = createTidalArtworkResolver(),
+  allowedHosts = ["127.0.0.1", "localhost", "[::1]"],
 ): (request: Request) => Promise<Response> {
+  const allowedHostnames = new Set(
+    allowedHosts.map(canonicalHost).filter(Boolean),
+  );
   return async (request) => {
+    const requestHost = request.headers.get("host");
+    if (!requestHost || !allowedHostnames.has(canonicalHost(requestHost)))
+      return new Response("Invalid host", { status: 421 });
     const url = new URL(request.url);
     const headers = securityHeaders();
 
@@ -167,10 +176,14 @@ export function startReviewServer(): void {
   const reviews = new ReviewService(database);
   const session = randomBytes(32).toString("hex");
   const csrf = randomBytes(32).toString("hex");
+  const allowedHosts =
+    host === "0.0.0.0" || host === "::"
+      ? ["127.0.0.1", "localhost", "[::1]", ...localInterfaceHosts()]
+      : [host, "127.0.0.1", "localhost", "[::1]"];
   Bun.serve({
     hostname: host,
     port,
-    fetch: createReviewHandler(reviews, session, csrf),
+    fetch: createReviewHandler(reviews, session, csrf, undefined, allowedHosts),
   });
   console.log(`Review UI: http://${host}:${port}`);
   console.log(`Database: ${databasePath}`);
@@ -220,4 +233,29 @@ function numberParam(url: URL, name: string): number | undefined {
 function option(args: string[], name: string): string | undefined {
   const index = args.indexOf(name);
   return index < 0 ? undefined : args[index + 1];
+}
+
+function canonicalHost(value: string): string {
+  const trimmed = value.trim();
+  try {
+    const isBareIpv6 = isIP(trimmed) === 6;
+    const parsed = new URL(`http://${isBareIpv6 ? `[${trimmed}]` : trimmed}`);
+    if (parsed.username || parsed.password || parsed.pathname !== "/")
+      return "";
+    return parsed.hostname;
+  } catch {
+    return "";
+  }
+}
+
+function localInterfaceHosts(): string[] {
+  const hosts: string[] = [];
+  for (const addresses of Object.values(networkInterfaces())) {
+    for (const address of addresses ?? []) {
+      if (address.family === "IPv4") hosts.push(address.address);
+      else if (address.family === "IPv6")
+        hosts.push(`[${address.address.split("%")[0]}]`);
+    }
+  }
+  return hosts;
 }

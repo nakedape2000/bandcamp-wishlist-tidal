@@ -10,6 +10,9 @@
   "files": [
     "scripts",
     "src",
+    "tidal-auth.ts",
+    "tidal-export-library.ts",
+    "tidal-scan.ts",
     "schemas",
     "README.md",
     "LICENSE",

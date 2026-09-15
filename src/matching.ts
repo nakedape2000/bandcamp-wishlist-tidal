@@ -33,18 +33,26 @@ export interface DuplicateGroup {
 }
 
 export function normalizeMatchText(value: string): string {
-  return value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/\([^)]*(?:remix|mix|edit|version|deluxe|expanded)[^)]*\)/gi, " ")
-    .replace(
-      /\b(?:remaster(?:ed)?|deluxe|expanded|anniversary|edition)\b/gi,
-      " ",
-    )
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
-    .replace(/\s+/g, " ");
+  return (
+    value
+      .normalize("NFKD")
+      // Keep combining marks for non-Latin scripts (for example Cyrillic й),
+      // while making Latin diacritics compare consistently.
+      .replace(/(?<=[\p{Script=Latin}])\p{M}+/gu, "")
+      .toLowerCase()
+      .replace(
+        /\([^)]*(?:remix|mix|edit|version|deluxe|expanded)[^)]*\)/gi,
+        " ",
+      )
+      .replace(
+        /\b(?:remaster(?:ed)?|deluxe|expanded|anniversary|edition)\b/gi,
+        " ",
+      )
+      .replace(/[^\p{L}\p{N}\p{M}]+/gu, " ")
+      .trim()
+      .replace(/\s+/g, " ")
+      .normalize("NFC")
+  );
 }
 
 function similarity(left: string, right: string): number {

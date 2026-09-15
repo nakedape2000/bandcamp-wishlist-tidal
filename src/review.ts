@@ -301,31 +301,36 @@ export class ReviewService {
       if (
         !Number.isInteger(override.bandcampItemId) ||
         override.bandcampItemId <= 0 ||
-        typeof override.updatedAt !== "string"
+        typeof override.updatedAt !== "string" ||
+        typeof override.metadata !== "object" ||
+        override.metadata === null
       )
         throw new Error("Invalid review decision document.");
       validateMetadata(override.metadata);
     }
-    for (const decision of document.decisions) {
-      this.decide(
-        decision.bandcampItemId,
-        decision.action,
-        decision.chosenTidalAlbumId,
-        decision.updatedAt,
-      );
-      if (Object.keys(decision.metadata).length)
-        this.editMetadata(
+    const transaction = (this.database as Database).transaction(() => {
+      for (const decision of document.decisions) {
+        this.decide(
           decision.bandcampItemId,
-          decision.metadata,
+          decision.action,
+          decision.chosenTidalAlbumId,
           decision.updatedAt,
         );
-    }
-    for (const override of metadataOverrides)
-      this.editMetadata(
-        override.bandcampItemId,
-        override.metadata,
-        override.updatedAt,
-      );
+        if (Object.keys(decision.metadata).length)
+          this.editMetadata(
+            decision.bandcampItemId,
+            decision.metadata,
+            decision.updatedAt,
+          );
+      }
+      for (const override of metadataOverrides)
+        this.editMetadata(
+          override.bandcampItemId,
+          override.metadata,
+          override.updatedAt,
+        );
+    });
+    transaction();
     return new Set([
       ...document.decisions.map((decision) => decision.bandcampItemId),
       ...metadataOverrides.map((override) => override.bandcampItemId),

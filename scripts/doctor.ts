@@ -18,20 +18,22 @@ check(
   typeof Bun !== "undefined",
   typeof Bun !== "undefined" ? Bun.version : "missing",
 );
-check(
-  "Fixture files",
-  true,
-  "test/fixtures/data-blob.html and api-response.json are present",
-);
 try {
   await access("test/fixtures/data-blob.html", constants.R_OK);
   await access("test/fixtures/api-response.json", constants.R_OK);
-} catch {
-  checks[1] = {
-    name: "Fixture files",
-    ok: false,
-    detail: "fixtures are not readable",
-  };
+  check("Fixture files", true, "fixtures are readable");
+} catch (error) {
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String(error.code)
+      : "";
+  check(
+    "Fixture files",
+    code === "ENOENT",
+    code === "ENOENT"
+      ? "unavailable outside a source checkout"
+      : "fixture files are not readable",
+  );
 }
 try {
   const mode = (await stat(".env")).mode & 0o777;
@@ -69,11 +71,13 @@ if (!existsSync(tokenPath)) {
       status.configured &&
         status.expired !== true &&
         !status.missing_scopes.length,
-      status.expired
-        ? "expired; rerun sync auth tidal"
-        : status.missing_scopes.length
-          ? `missing scopes: ${status.missing_scopes.join(", ")}; rerun sync auth tidal`
-          : "usable",
+      !status.configured
+        ? "not configured; rerun sync auth tidal"
+        : status.expired
+          ? "expired; rerun sync auth tidal"
+          : status.missing_scopes.length
+            ? `missing scopes: ${status.missing_scopes.join(", ")}; rerun sync auth tidal`
+            : "usable",
     );
   } catch {
     check(

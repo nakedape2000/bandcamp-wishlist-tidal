@@ -16,6 +16,17 @@ if (typeof packageJson.bin?.["bandcamp-tidal-sync"] !== "string")
 if (typeof packageJson.engines?.bun !== "string")
   throw new Error("package Bun engine constraint is missing");
 
+const releaseTag = process.env.BCTS_RELEASE_TAG;
+if (releaseTag) {
+  const tagVersion = releaseTag.startsWith("v")
+    ? releaseTag.slice(1)
+    : releaseTag;
+  if (tagVersion !== packageJson.version)
+    throw new Error(
+      `Release tag ${releaseTag} does not match package version ${packageJson.version}`,
+    );
+}
+
 const result = Bun.spawnSync(["bun", "pm", "pack", "--dry-run"], {
   stdout: "pipe",
   stderr: "pipe",

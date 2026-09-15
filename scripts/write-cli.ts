@@ -22,8 +22,10 @@ const databasePath =
   option("--database") ?? process.env.BCTS_DATABASE ?? config.storage.database;
 mkdirSync(dirname(databasePath), { recursive: true });
 const database = new Database(databasePath);
+if (databasePath !== ":memory:") chmodSync(databasePath, 0o600);
 const store = new SyncStore(database);
 const reviews = new ReviewService(database);
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 try {
   if (command === "plan") {
@@ -131,6 +133,7 @@ async function applyPlan(planId: string): Promise<void> {
   );
   store.setWritePlanStatus(planId, "applying");
   for (const [index, batch] of batches.entries()) {
+    if (index > 0) await sleep(config.sync.delay_between_batches_ms);
     const batchNumber = index + 1;
     const prior = priorAttempts.get(batchNumber);
     if (prior?.status === "success" || prior?.status === "skipped") {

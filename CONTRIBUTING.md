@@ -6,9 +6,8 @@ Install Bun 1.x, clone the repository, and run `bun install`. Run the full
 verification set before opening a pull request:
 
 ```sh
-bun test
-bunx tsc --noEmit
-bun run check
+bun run verify:m5
+bun run release:check
 ```
 
 Changes that affect provider behavior must include fixture or mocked HTTP

@@ -464,8 +464,17 @@ function textElement(tag, text, className = "") {
 }
 function link(url, text, className = "") {
   if (!url) return null;
+  let safeUrl;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:")
+      return null;
+    safeUrl = parsed.href;
+  } catch {
+    return null;
+  }
   const anchor = textElement("a", text, className);
-  anchor.href = url;
+  anchor.href = safeUrl;
   anchor.target = "_blank";
   anchor.rel = "noreferrer noopener";
   return anchor;

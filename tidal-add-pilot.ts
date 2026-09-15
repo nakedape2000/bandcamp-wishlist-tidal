@@ -138,7 +138,7 @@ for (const [index, album] of albums
   .filter((album: any) => pendingIds.includes(String(album.tidal_album_id)))
   .entries()) {
   console.log(
-    `${index + 1}. ${album.tidal_artists.join(", ")} — ` +
+    `${index + 1}. ${(Array.isArray(album.tidal_artists) ? album.tidal_artists : []).join(", ")} — ` +
       `${album.tidal_title} (${album.tidal_album_id})`,
   );
 }

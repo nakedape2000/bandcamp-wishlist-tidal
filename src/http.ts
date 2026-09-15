@@ -43,8 +43,19 @@ export async function request(
     }
 
     if (!retryable(response.status) || attempt >= retries) return response;
-    const retryAfter = Number(response.headers.get("retry-after") ?? "0");
-    const delay = Math.max(retryAfter * 1000, baseDelayMs * 2 ** attempt);
+    const retryAfter = response.headers.get("retry-after");
+    const numericDelay = retryAfter == null ? 0 : Number(retryAfter) * 1000;
+    const dateDelay =
+      retryAfter && Number.isNaN(Number(retryAfter))
+        ? Date.parse(retryAfter) - Date.now()
+        : 0;
+    const retryDelay =
+      Number.isFinite(numericDelay) && numericDelay >= 0
+        ? numericDelay
+        : Number.isFinite(dateDelay) && dateDelay >= 0
+          ? dateDelay
+          : 0;
+    const delay = Math.max(retryDelay, baseDelayMs * 2 ** attempt);
     await sleep(delay);
   }
 }

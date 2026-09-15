@@ -1,23 +1,14 @@
-import {
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
 import { randomUUID } from "node:crypto";
-
-const tokenData = JSON.parse(
-  readFileSync("./output/tidal-tokens.json", "utf8")
-);
+import { readFileSync, writeFileSync } from "node:fs";
 
 const manifest = JSON.parse(
-  readFileSync("./output/high-confidence-to-save.json", "utf8")
+  readFileSync("./output/high-confidence-to-save.json", "utf8"),
 );
 
 const dryRun = true;
 const batchSize = 25;
 
-const albums = manifest.filter(
-  (item: any) => item.tidal_album_id
-);
+const albums = manifest.filter((item: any) => item.tidal_album_id);
 
 const unique = new Map<string, any>();
 
@@ -35,8 +26,7 @@ for (let index = 0; index < uniqueAlbums.length; index += batchSize) {
 const report = {
   dry_run: dryRun,
   collection: "me",
-  endpoint:
-    "POST /v2/userCollectionAlbums/me/relationships/items",
+  endpoint: "POST /v2/userCollectionAlbums/me/relationships/items",
   total_albums: uniqueAlbums.length,
   batch_size: batchSize,
   batch_count: batches.length,
@@ -60,7 +50,7 @@ const report = {
 writeFileSync(
   "./output/tidal-add-dry-run.json",
   JSON.stringify(report, null, 2),
-  "utf8"
+  "utf8",
 );
 
 console.log("Dry run only; no TIDAL changes were made.");

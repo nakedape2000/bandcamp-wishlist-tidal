@@ -1,14 +1,15 @@
-import { describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
+import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { createAdditionPlan } from "../src/addition-plan";
+import { MatchCache } from "../src/match-cache";
 import {
   classifyNoCandidates,
+  detectDuplicateEditions,
   normalizeMatchText,
   scoreMatch,
-  detectDuplicateEditions,
 } from "../src/matching";
-import { MatchCache } from "../src/match-cache";
-import { createAdditionPlan } from "../src/addition-plan";
+
 const fixtures = JSON.parse(
   readFileSync("test/fixtures/m2-matching.json", "utf8"),
 ) as Array<{
@@ -23,6 +24,22 @@ describe("matching", () => {
     expect(normalizeMatchText("Beyoncé - Live (Deluxe Edition)")).toBe(
       "beyonce live",
     );
+  });
+  test("preserves non-Latin letters for exact matches", () => {
+    expect(normalizeMatchText("Дидюля — Ночной альбом")).toBe(
+      "дидюля ночной альбом",
+    );
+    expect(
+      scoreMatch(
+        { artist: "Дидюля", title: "Ночной альбом" },
+        { id: "cyrillic", artist: "Дидюля", title: "Ночной альбом" },
+      ).score,
+    ).toBe(90);
+    expect(normalizeMatchText("宇多田ヒカル — 初恋")).toBe("宇多田ヒカル 初恋");
+    expect(normalizeMatchText("فيروز — نسم علينا الهوى")).toBe(
+      "فيروز نسم علينا الهوى",
+    );
+    expect(normalizeMatchText("東京")).not.toBe(normalizeMatchText("京都"));
   });
   test("returns an explainable high-confidence match", () => {
     const result = scoreMatch(

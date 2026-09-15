@@ -18,7 +18,7 @@ const terminal = new Terminal({
   color:
     !process.argv.includes("--no-color") &&
     !process.env.NO_COLOR &&
-    process.stderr.isTTY,
+    Boolean(process.stderr.isTTY),
 });
 const outputPath =
   process.env.BCTS_WISHLIST_SNAPSHOT ??

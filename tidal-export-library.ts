@@ -1,5 +1,5 @@
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { loadConfig } from "./src/config";
 import { Terminal } from "./src/terminal";
 import { absoluteTidalUrl, asArray, TidalClient } from "./src/tidal";
@@ -170,6 +170,8 @@ const albums = await exportLibrary();
 terminal.endProgress();
 
 mkdirSync(outputDir, { recursive: true });
+mkdirSync(dirname(jsonPath), { recursive: true });
+mkdirSync(dirname(csvPath), { recursive: true });
 writeFileSync(jsonPath, JSON.stringify(albums, null, 2), "utf8");
 chmodSync(jsonPath, 0o600);
 

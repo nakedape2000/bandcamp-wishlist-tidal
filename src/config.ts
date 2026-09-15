@@ -114,11 +114,12 @@ export function validateConfig(value: unknown): AppConfig {
 export function loadConfig(
   path = process.env.BCTS_CONFIG ?? "./config.json",
 ): AppConfig {
-  if (!existsSync(path)) return fromEnvironment(defaultConfig());
+  if (!existsSync(path))
+    return validateConfig(fromEnvironment(defaultConfig()));
   const raw = Bun.JSONC.parse(readFileSync(path, "utf8")) as Partial<AppConfig>;
   const defaults = defaultConfig();
-  return fromEnvironment(
-    validateConfig({
+  return validateConfig(
+    fromEnvironment({
       ...defaults,
       ...raw,
       storage: { ...defaults.storage, ...raw.storage },
@@ -168,13 +169,16 @@ export function setConfigValue(
   const clone = JSON.parse(JSON.stringify(config)) as Record<string, unknown>;
   let cursor: Record<string, unknown> = clone;
   for (const part of parts.slice(0, -1)) {
+    if (!Object.hasOwn(cursor, part))
+      throw new Error(`Unknown configuration path: ${key}`);
     const next = cursor[part];
     if (!next || typeof next !== "object" || Array.isArray(next))
       throw new Error(`Unknown configuration path: ${key}`);
     cursor = next as Record<string, unknown>;
   }
   const leaf = parts[parts.length - 1] as string;
-  if (!(leaf in cursor)) throw new Error(`Unknown configuration key: ${key}`);
+  if (!Object.hasOwn(cursor, leaf))
+    throw new Error(`Unknown configuration key: ${key}`);
   const current = cursor[leaf];
   let value: unknown = rawValue;
   if (typeof current === "number") {

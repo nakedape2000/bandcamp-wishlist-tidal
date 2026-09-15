@@ -393,33 +393,36 @@ export class SyncStore {
     }>;
     payload: unknown;
   }): void {
-    this.database
-      .query(
-        `INSERT INTO write_plans
-          (plan_id, created_at, provider, collection, status, max_additions, payload_json)
-         VALUES (?, ?, ?, ?, 'proposed', ?, ?)`,
-      )
-      .run(
-        plan.planId,
-        plan.createdAt,
-        plan.provider,
-        plan.collection,
-        plan.maxAdditions,
-        JSON.stringify(plan.payload),
+    const transaction = this.database.transaction(() => {
+      this.database
+        .query(
+          `INSERT INTO write_plans
+            (plan_id, created_at, provider, collection, status, max_additions, payload_json)
+           VALUES (?, ?, ?, ?, 'proposed', ?, ?)`,
+        )
+        .run(
+          plan.planId,
+          plan.createdAt,
+          plan.provider,
+          plan.collection,
+          plan.maxAdditions,
+          JSON.stringify(plan.payload),
+        );
+      const item = this.database.prepare(
+        `INSERT INTO write_plan_items
+          (plan_id, position, bandcamp_item_id, tidal_album_id, source_json)
+         VALUES (?, ?, ?, ?, ?)`,
       );
-    const item = this.database.prepare(
-      `INSERT INTO write_plan_items
-        (plan_id, position, bandcamp_item_id, tidal_album_id, source_json)
-       VALUES (?, ?, ?, ?, ?)`,
-    );
-    for (const [position, value] of plan.items.entries())
-      item.run(
-        plan.planId,
-        position,
-        value.bandcampItemId,
-        value.tidalAlbumId,
-        JSON.stringify(value.source),
-      );
+      for (const [position, value] of plan.items.entries())
+        item.run(
+          plan.planId,
+          position,
+          value.bandcampItemId,
+          value.tidalAlbumId,
+          JSON.stringify(value.source),
+        );
+    });
+    transaction();
   }
 
   getWritePlan(planId: string): Record<string, unknown> | null {

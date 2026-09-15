@@ -73,6 +73,33 @@ describe("ReviewService", () => {
     expect(target.get(7)?.decision?.metadata.artist).toBe("Corrected Artist");
   });
 
+  test("rolls back imported decisions when a later item fails", () => {
+    const service = serviceWithFixture();
+    expect(() =>
+      service.importDecisions({
+        schema_version: 1,
+        exported_at: "2026-09-13T01:00:00.000Z",
+        decisions: [
+          {
+            bandcampItemId: 7,
+            action: "deferred",
+            chosenTidalAlbumId: null,
+            metadata: {},
+            updatedAt: "2026-09-13T01:00:00.000Z",
+          },
+          {
+            bandcampItemId: 999,
+            action: "deferred",
+            chosenTidalAlbumId: null,
+            metadata: {},
+            updatedAt: "2026-09-13T01:00:00.000Z",
+          },
+        ],
+      }),
+    ).toThrow("Review item 999 not found.");
+    expect(service.get(7)?.decision).toBeNull();
+  });
+
   test("validates metadata and keeps edited values durable", () => {
     const service = serviceWithFixture();
     service.editMetadata(7, { artist: "  Corrected Artist  " });
@@ -111,9 +138,63 @@ describe("ReviewService", () => {
       "session-token",
       "csrf-token",
     );
-    const response = await handler(new Request("http://127.0.0.1/api/reviews"));
+    const response = await handler(
+      new Request("http://127.0.0.1/api/reviews", {
+        headers: { Host: "127.0.0.1" },
+      }),
+    );
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ records: [], total: 0 });
+  });
+
+  test("rejects requests with an unlisted host", async () => {
+    const database = new Database(":memory:");
+    databases.push(database);
+    const handler = createReviewHandler(
+      new ReviewService(database),
+      "session-token",
+      "csrf-token",
+    );
+    const response = await handler(
+      new Request("http://127.0.0.1/api/session", {
+        headers: { Host: "attacker.example:4173" },
+      }),
+    );
+    expect(response.status).toBe(421);
+  });
+
+  test("accepts a loopback host with its port", async () => {
+    const database = new Database(":memory:");
+    databases.push(database);
+    const handler = createReviewHandler(
+      new ReviewService(database),
+      "session-token",
+      "csrf-token",
+    );
+    const response = await handler(
+      new Request("http://127.0.0.1:4173/api/session", {
+        headers: { Host: "127.0.0.1:4173" },
+      }),
+    );
+    expect(response.status).toBe(200);
+  });
+
+  test("canonicalizes an explicit host allowlist with a port", async () => {
+    const database = new Database(":memory:");
+    databases.push(database);
+    const handler = createReviewHandler(
+      new ReviewService(database),
+      "session-token",
+      "csrf-token",
+      undefined,
+      ["127.0.0.1:4173"],
+    );
+    const response = await handler(
+      new Request("http://127.0.0.1:4173/api/session", {
+        headers: { Host: "127.0.0.1:4173" },
+      }),
+    );
+    expect(response.status).toBe(200);
   });
 
   test("requires the session cookie and CSRF token for decisions", async () => {
@@ -122,14 +203,18 @@ describe("ReviewService", () => {
     const unauthorized = await handler(
       new Request("http://127.0.0.1/api/reviews/7", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Host: "127.0.0.1" },
         body: JSON.stringify({ action: "approved", candidateId: "t1" }),
       }),
     );
     expect(unauthorized.status).toBe(403);
     expect(service.get(7)?.decision).toBeNull();
 
-    const session = await handler(new Request("http://127.0.0.1/api/session"));
+    const session = await handler(
+      new Request("http://127.0.0.1/api/session", {
+        headers: { Host: "127.0.0.1" },
+      }),
+    );
     expect(session.headers.get("set-cookie")).toContain("HttpOnly");
     expect(await session.json()).toEqual({ csrfToken: "csrf-token" });
 
@@ -138,6 +223,7 @@ describe("ReviewService", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Host: "127.0.0.1",
           Cookie: "bcts_session=session-token",
           "X-CSRF-Token": "csrf-token",
         },
