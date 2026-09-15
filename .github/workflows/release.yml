@@ -10,7 +10,21 @@ permissions:
   attestations: write
 
 jobs:
+  dependency-audit:
+    permissions:
+      actions: read
+      contents: read
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@c7c7bcb0773cc4678a674ada03a66cc5c4325476 # v2.6.0
+    with:
+      scan-args: |-
+        --include-git-root
+        --recursive
+        ./
+      upload-sarif: false
+      fail-on-vuln: true
+
   build-and-attest:
+    needs: dependency-audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
