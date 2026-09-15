@@ -140,6 +140,8 @@ sync tool is documented in [`docs/future-development-backlog.md`](docs/future-de
 - [Migration from legacy scripts](docs/migration.md)
 - [Support matrix](docs/support-matrix.md)
 - [Release process](docs/release-process.md)
+- [M7 dashboard design](docs/m7-design.md)
+- [M7 verification runbook](docs/m7-verification.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 
