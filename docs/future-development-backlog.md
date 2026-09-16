@@ -418,14 +418,14 @@ Do not put access tokens or client secrets in this YAML. Use the OS keychain, an
 **Status:** Acceptance in progress. Public project documentation, security and
 privacy guidance, support matrix, migration guide, package metadata, Docker
 review-image definition, issue templates, and CI/release runbooks are present.
-The repository history has been rewritten to remove personal `output/` data,
-and GitHub Support ticket `#4759477` is open for removal of the remaining cached
-PR #1 references and unreachable objects. Keep the repository private until
-Support confirms that purge. An OSV-based dependency audit is configured for
-pull requests, `main`, weekly runs, and release builds, and has passed on the
-cleaned `main` history. The remaining acceptance steps are Support confirmation,
-restoration of the public repository security settings, and a
-maintainer-controlled `v0.1.0` release with published signed artifacts.
+The repository history has been rewritten to remove personal `output/` data.
+GitHub Support ticket `#4759477` removed internal references for PR #1–#5 and
+confirmed that the sensitive data was cleared from cache; the old commit hashes
+are no longer accessible. Public visibility, private vulnerability reporting,
+secret scanning, push protection, Dependabot security updates, and the
+`Protect main` ruleset are enabled. The OSV-based dependency audit has passed on
+the cleaned `main` history. The remaining acceptance step is a
+maintainer-controlled `v0.1.0` release with verified signed artifacts.
 
 **Goal:** Make the project understandable, secure, and installable by other users.
 
@@ -643,26 +643,20 @@ applying → retryable_failure | unknown_outcome | permanent_failure
 
 The highest-value next sprint should be:
 
-1. While GitHub Support ticket `#4759477` is pending, keep the repository private.
-   The OSV-based replacement for the unavailable GitHub Dependency Review check
-   is implemented and confirmed passing on `main`.
-2. After Support confirms removal of the cached PR #1 references and old objects,
-   make the repository public again and restore the documented repository
-   security and branch-protection settings.
-3. Complete M6 acceptance: create the maintainer-approved `v0.1.0` tag and verify
+1. Complete M6 acceptance: create the maintainer-approved `v0.1.0` tag and verify
    the checksum, provenance attestation, and downloadable package produced by
    the release workflow.
-4. Install the packaged CLI in fresh supported macOS and Linux environments and
+2. Install the packaged CLI in fresh supported macOS and Linux environments and
    run the credential-free tutorial, `sync doctor`, and dry-run workflow.
-5. Start M7 with a dashboard showing the last run, pending reviews, proposed
+3. Start M7 with a dashboard showing the last run, pending reviews, proposed
    additions, failures, and the next scheduled scan.
-6. Add explicit “Scan now”, “Review matches”, and “Create plan” actions while
+4. Add explicit “Scan now”, “Review matches”, and “Create plan” actions while
    keeping all provider writes disabled in those flows.
-7. Add the separate, conspicuous apply flow backed by the existing immutable-plan
+5. Add the separate, conspicuous apply flow backed by the existing immutable-plan
    and confirmation boundary.
-8. Add container health/readiness endpoints, database backup/export, and an
+6. Add container health/readiness endpoints, database backup/export, and an
    activity log with downloadable reports.
-9. Add opt-in scheduling and notifications only after the dashboard and recovery
+7. Add opt-in scheduling and notifications only after the dashboard and recovery
    paths have acceptance coverage.
 
 This order closes the public-release gate before extending the optional local web
