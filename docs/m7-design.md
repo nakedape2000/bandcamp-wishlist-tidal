@@ -85,10 +85,14 @@ verification. The default remains dry-run.
 
 ### Activity and reports
 
-List scans, decisions, plan creation, apply attempts, verification results,
-failures, and exports in reverse chronological order. Each entry links to a
-downloadable JSON report. Reports contain counts, identifiers, timestamps, and
-error details, but never tokens or cookies.
+List every dashboard mutation in reverse chronological order. The event
+taxonomy is: scan start/completion/failure, review decision or metadata edit,
+plan creation/export, apply start/batch/completion/failure, verification result,
+report export, backup creation/restore, schedule validation/change/pause/resume,
+and notification delivery/failure. Each entry links to a downloadable JSON
+report when one exists. Reports contain counts, identifiers, timestamps, and
+error details, but never tokens, client secrets, cookies, or authorization
+headers.
 
 ## Vertical Slices
 
