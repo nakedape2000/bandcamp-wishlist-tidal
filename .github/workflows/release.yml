@@ -52,6 +52,8 @@ jobs:
       - run: BCTS_RELEASE_TAG="$GITHUB_REF_NAME" bun run release:check
       - name: Build package archive
         run: bun pm pack --filename "bandcamp-tidal-sync-${GITHUB_REF_NAME#v}.tgz"
+      - name: Smoke test installed package
+        run: bun run package:smoke -- "bandcamp-tidal-sync-${GITHUB_REF_NAME#v}.tgz"
       - name: Validate npm publish payload
         run: npm publish --dry-run --ignore-scripts
       - name: Generate checksum

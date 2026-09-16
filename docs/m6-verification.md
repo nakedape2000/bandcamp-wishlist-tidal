@@ -22,6 +22,10 @@ Expected results:
   SQLite database, or `output/` data.
 - The npm publish dry run completes without authentication and shows the same
   sanitized payload.
+- Build the archive and run `bun run package:smoke -- <archive.tgz>` before
+  publication. This installs the package in a temporary directory and verifies
+  `--help`, `doctor`, and the credential-free tutorial outside the source
+  checkout.
 - The `Dependency audit / osv-scan` check passes. It scans the resolved
   `bun.lock` with OSV-Scanner on pull requests, pushes to `main`, manual runs,
   and a weekly schedule. The release workflow runs the same blocking audit

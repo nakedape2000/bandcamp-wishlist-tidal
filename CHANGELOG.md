@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 - 2026-09-16
+
+- Fixed `--help` in the installed CLI so it no longer starts a sync.
+- Included anonymous offline tutorial fixtures in the release package.
+- Added an installed-package smoke test to the release workflow.
+
 ## 0.1.0 - 2026-09-14
 
 - Added the modern local-first sync CLI and configuration workflow.

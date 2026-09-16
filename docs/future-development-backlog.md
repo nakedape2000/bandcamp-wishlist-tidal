@@ -424,8 +424,10 @@ confirmed that the sensitive data was cleared from cache; the old commit hashes
 are no longer accessible. Public visibility, private vulnerability reporting,
 secret scanning, push protection, Dependabot security updates, and the
 `Protect main` ruleset are enabled. The OSV-based dependency audit has passed on
-the cleaned `main` history. The remaining acceptance step is a
-maintainer-controlled `v0.1.0` release with verified signed artifacts.
+the cleaned `main` history. Signed release `v0.1.0` exposed two packaging
+defects during installed-package acceptance: `--help` started a sync and the
+offline tutorial fixtures were absent. M6 acceptance now requires corrected
+patch release `v0.1.1` to pass the same macOS and Linux smoke tests.
 
 **Goal:** Make the project understandable, secure, and installable by other users.
 
@@ -643,9 +645,8 @@ applying → retryable_failure | unknown_outcome | permanent_failure
 
 The highest-value next sprint should be:
 
-1. Complete M6 acceptance: create the maintainer-approved `v0.1.0` tag and verify
-   the checksum, provenance attestation, and downloadable package produced by
-   the release workflow.
+1. Complete M6 acceptance with corrected patch release `v0.1.1`; verify its
+   signature, checksum, provenance attestation, and downloadable package.
 2. Install the packaged CLI in fresh supported macOS and Linux environments and
    run the credential-free tutorial, `sync doctor`, and dry-run workflow.
 3. Start M7 with a dashboard showing the last run, pending reviews, proposed

@@ -142,7 +142,8 @@ describe("M5 configuration contracts", () => {
   });
 
   test("help exposes the canonical M5 command surface", () => {
-    const result = runCli(["help", "--json"]);
+    const result = runCli(["--help", "--json"]);
+    expect(result.exitCode).toBe(0);
     const commands = JSON.parse(result.stdout).commands as string[];
     for (const command of [
       "auth tidal",
@@ -157,13 +158,36 @@ describe("M5 configuration contracts", () => {
     ])
       expect(commands).toContain(command);
   });
+
+  test("offline tutorial works outside the source checkout", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bcts-m5-tutorial-"));
+    dirs.push(dir);
+    const result = runCli(["tutorial"], {}, dir);
+    expect(result.exitCode).toBe(0);
+    const payload = JSON.parse(result.stdout.slice(result.stdout.indexOf("{")));
+    expect(payload).toMatchObject({
+      fan_id: 424242,
+      mode: "fixture-dry-run",
+      item_count: 2,
+      provider_writes: 0,
+    });
+  });
 });
 
-function runCli(args: string[], environment: Record<string, string> = {}) {
+function runCli(
+  args: string[],
+  environment: Record<string, string> = {},
+  cwd = process.cwd(),
+) {
   const result = Bun.spawnSync(
-    [process.execPath, "run", "scripts/main.ts", ...args],
+    [
+      process.execPath,
+      "run",
+      join(import.meta.dir, "..", "scripts/main.ts"),
+      ...args,
+    ],
     {
-      cwd: process.cwd(),
+      cwd,
       env: { ...process.env, ...environment },
       stdout: "pipe",
       stderr: "pipe",

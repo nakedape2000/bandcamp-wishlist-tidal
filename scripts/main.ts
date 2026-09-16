@@ -66,6 +66,7 @@ function findCommandIndex(values: string[]): number {
   ]);
   for (let index = 0; index < values.length; index++) {
     const value = values[index] as string;
+    if (value === "--help") return index;
     if (withValues.has(value)) {
       index++;
       continue;

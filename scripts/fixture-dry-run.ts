@@ -1,8 +1,14 @@
+import { join } from "node:path";
 import { extractDataBlob, normalizeItem, readFanId } from "../src/parse";
 import type { RawApiItem } from "../src/types";
 
-const html = await Bun.file("test/fixtures/data-blob.html").text();
-const api = (await Bun.file("test/fixtures/api-response.json").json()) as {
+const fixtureDirectory = join(import.meta.dir, "..", "fixtures");
+const html = await Bun.file(
+  join(fixtureDirectory, "tutorial-data-blob.html"),
+).text();
+const api = (await Bun.file(
+  join(fixtureDirectory, "tutorial-api-response.json"),
+).json()) as {
   items?: RawApiItem[];
 };
 

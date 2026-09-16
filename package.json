@@ -1,6 +1,6 @@
 {
   "name": "bandcamp-wishlist-tidal",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Safely match a public Bandcamp wishlist with a TIDAL library",
   "type": "module",
   "license": "MIT",
@@ -10,6 +10,7 @@
   "files": [
     "scripts",
     "src",
+    "fixtures",
     "tidal-auth.ts",
     "tidal-export-library.ts",
     "tidal-scan.ts",
@@ -57,7 +58,8 @@
     "test": "bun test",
     "check:m0": "biome check src scripts test/m0.test.ts tidal-add-pilot.ts tidal-add-remaining.ts tidal-export-library.ts tidal-compare-library.ts tidal-create-pilot-manifest.ts tidal-create-remaining-manifest.ts schemas",
     "check": "biome check .",
-    "release:check": "bun run scripts/release-check.ts"
+    "release:check": "bun run scripts/release-check.ts",
+    "package:smoke": "bun run scripts/package-smoke.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.4",
