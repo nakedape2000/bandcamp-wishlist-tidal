@@ -465,6 +465,9 @@ maintainer-controlled `v0.1.0` release with published signed artifacts.
 
 ## M7 — Optional local web application and scheduling
 
+**Status:** Design specified; implementation starts after M6 release acceptance.
+See the [M7 design](m7-design.md) and [M7 verification runbook](m7-verification.md).
+
 **Goal:** Make recurring use feel like an appliance while preserving self-hosting.
 
 ### Tasks
