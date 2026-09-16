@@ -19,8 +19,15 @@ check(
   typeof Bun !== "undefined" ? Bun.version : "missing",
 );
 try {
-  await access("test/fixtures/data-blob.html", constants.R_OK);
-  await access("test/fixtures/api-response.json", constants.R_OK);
+  const fixtureDirectory = join(import.meta.dir, "..", "fixtures");
+  await access(
+    join(fixtureDirectory, "tutorial-data-blob.html"),
+    constants.R_OK,
+  );
+  await access(
+    join(fixtureDirectory, "tutorial-api-response.json"),
+    constants.R_OK,
+  );
   check("Fixture files", true, "fixtures are readable");
 } catch (error) {
   const code =
@@ -29,9 +36,9 @@ try {
       : "";
   check(
     "Fixture files",
-    code === "ENOENT",
+    false,
     code === "ENOENT"
-      ? "unavailable outside a source checkout"
+      ? "tutorial fixtures are missing"
       : "fixture files are not readable",
   );
 }
@@ -99,17 +106,20 @@ check(
   config.security.dry_run_by_default,
   "dry-run by default",
 );
-try {
-  check(
-    "Git",
-    execFileSync("git", ["rev-parse", "--is-inside-work-tree"], {
-      encoding: "utf8",
-    }).trim() === "true",
-    "repository detected",
-  );
-} catch {
-  check("Git", false, "not a Git repository");
-}
+const sourceCheckout = existsSync(join(import.meta.dir, "..", ".git"));
+if (sourceCheckout) {
+  try {
+    check(
+      "Git",
+      execFileSync("git", ["rev-parse", "--is-inside-work-tree"], {
+        encoding: "utf8",
+      }).trim() === "true",
+      "repository detected",
+    );
+  } catch {
+    check("Git", false, "source checkout is not a Git repository");
+  }
+} else check("Git", true, "not required for packaged installation");
 
 for (const result of checks) {
   if (process.env.BCTS_LOG_JSON === "1") logEvent("doctor.check", result);

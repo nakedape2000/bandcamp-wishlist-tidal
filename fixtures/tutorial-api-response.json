@@ -1,0 +1,22 @@
+{
+  "items": [
+    {
+      "item_id": 1001,
+      "item_type": "album",
+      "band_name": "Fixture Artist",
+      "item_title": "Offline Album",
+      "item_url": "https://example.invalid/album/offline-album",
+      "item_art_url": null,
+      "added": "01 Jan 2026 00:00:00 GMT"
+    },
+    {
+      "item_id": 1002,
+      "item_type": "track",
+      "band_name": "Fixture Artist",
+      "item_title": "Offline Track",
+      "item_url": "https://example.invalid/track/offline-track",
+      "item_art_url": null,
+      "added": null
+    }
+  ]
+}
