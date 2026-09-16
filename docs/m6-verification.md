@@ -47,9 +47,10 @@ be started with `docker compose --profile scheduler up scheduler`; it runs the
 read-only scan loop and must use a private volume/config. Do not mount a token
 file into a public or shared container.
 
-M6 acceptance remains in progress while GitHub Support ticket `#4759477` is
-open for removal of cached PR #1 references left after the personal-data history
-rewrite. Keep the repository private until Support confirms the purge. A tagged
-release must then be built, checksummed, and published through the documented
-release process. Publishing and signing require maintainer credentials and are
+GitHub Support ticket `#4759477` removed the cached PR #1–#5 references left
+after the personal-data history rewrite and confirmed cache clearance. The old
+commit hashes are no longer accessible, and the public security settings and
+`Protect main` ruleset have been restored. M6 acceptance now requires a tagged
+release to be built, checksummed, and published through the documented release
+process. Publishing and signing require maintainer credentials and are
 intentionally not performed by this repository-local verification.
