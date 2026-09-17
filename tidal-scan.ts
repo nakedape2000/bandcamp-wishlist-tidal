@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { loadConfig } from "./src/config";
 import { MatchCache } from "./src/match-cache";
@@ -89,6 +89,23 @@ const tokenData = JSON.parse(readFileSync(tokenPath, "utf8")) as {
 const wishlistData = JSON.parse(readFileSync(wishlistPath, "utf8")) as {
   items: WishlistAlbum[];
 };
+const forceFullScan =
+  process.argv.includes("--full") || process.argv.includes("--full-rescan");
+const previousMatches = new Map<number, ScanResult>();
+if (!forceFullScan && existsSync(matchesJsonPath)) {
+  try {
+    const cached = JSON.parse(readFileSync(matchesJsonPath, "utf8")) as unknown;
+    if (Array.isArray(cached)) {
+      for (const entry of cached) {
+        const result = entry as ScanResult;
+        if (Number.isFinite(result.bandcamp_item_id))
+          previousMatches.set(result.bandcamp_item_id, result);
+      }
+    }
+  } catch {
+    // A malformed prior report is treated as a cache miss; the fresh scan will replace it.
+  }
+}
 
 const accessToken = tokenData.access_token;
 const countryCode = scanConfig.providers.tidal.country_code;
@@ -318,12 +335,29 @@ const allItems = wishlistData.items.filter((item) => item.itemType === "album");
 
 const items = testOnly ? allItems.slice(0, testItemLimit) : allItems;
 const output: ScanResult[] = [];
+let reusedCount = 0;
+let scannedCount = 0;
 
 for (let index = 0; index < items.length; index++) {
   const item = items[index] as WishlistAlbum;
   const cleanedTitle = cleanTitle(item.title);
 
+  const cached = previousMatches.get(item.itemId);
+  if (
+    cached &&
+    cached.status !== "error" &&
+    cached.bandcamp_artist === item.artist &&
+    cached.bandcamp_title === item.title &&
+    cached.bandcamp_url === item.url
+  ) {
+    output.push(cached);
+    reusedCount++;
+    terminal.progress("Reusing cached matches", reusedCount, items.length);
+    continue;
+  }
+
   terminal.progress("Matching albums", index + 1, items.length);
+  scannedCount++;
   terminal.debug(`${item.artist} - ${item.title}`);
 
   try {
@@ -508,6 +542,8 @@ if (process.env.BCTS_PIPELINE !== "1")
   terminal.output(
     {
       result_count: output.length,
+      reused_count: reusedCount,
+      scanned_count: scannedCount,
       json_output: matchesJsonPath,
       csv_output: matchesCsvPath,
       provider_writes: 0,
