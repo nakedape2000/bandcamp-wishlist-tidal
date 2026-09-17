@@ -54,7 +54,21 @@ file into a public or shared container.
 GitHub Support ticket `#4759477` removed the cached PR #1–#5 references left
 after the personal-data history rewrite and confirmed cache clearance. The old
 commit hashes are no longer accessible, and the public security settings and
-`Protect main` ruleset have been restored. M6 acceptance now requires a tagged
-release to be built, checksummed, and published through the documented release
-process. Publishing and signing require maintainer credentials and are
-intentionally not performed by this repository-local verification.
+`Protect main` ruleset have been restored.
+
+## Acceptance record
+
+M6 was accepted on 2026-09-17 with release
+[`v0.1.1`](https://github.com/nakedape2000/bandcamp-wishlist-tidal/releases/tag/v0.1.1):
+
+- GitHub verified the signed tag at commit
+  `c301eaf23607427d7b1a8c0b6fb093e7acc3f8ed`.
+- Release workflow run `35187502371` passed tests, secret scanning, OSV audit,
+  installed-package smoke testing, checksum generation, provenance attestation,
+  and release publication.
+- The published archive SHA-256 is
+  `7d802b954d17c596a8838f3cbae75edbf77b60bb59a159781a8bbd233769c9c2` and
+  matches `SHA256SUMS` and its SLSA provenance subject.
+- The downloaded archive passed `--help`, `doctor`, and the credential-free
+  tutorial on macOS and in a clean `oven/bun:1.3-slim` Linux container.
+- No command used `--apply`; all acceptance paths reported zero provider writes.
