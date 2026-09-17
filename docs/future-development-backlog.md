@@ -467,9 +467,9 @@ zero provider writes.
 
 ## M7 — Optional local web application and scheduling
 
-**Status:** M7.0 incremental refresh is implemented and awaiting real-account
-acceptance; dashboard and later slices remain to be implemented. M6 release
-acceptance is complete.
+**Status:** M7.0 incremental refresh is implemented and accepted against a
+real Bandcamp/TIDAL account; dashboard and later slices remain to be
+implemented. M6 release acceptance is complete.
 See the [M7 design](m7-design.md) and [M7 verification runbook](m7-verification.md).
 
 **Goal:** Make recurring use feel like an appliance while preserving self-hosting.
@@ -483,8 +483,8 @@ See the [M7 design](m7-design.md) and [M7 verification runbook](m7-verification.
   unchanged.
 - Fall back to a full TIDAL traversal when a new album ID or collection-count
   change is detected, so additions and removals remain correct.
-- Validate the refresh against a copied real-account database with zero
-  provider writes before starting M7.1.
+- Validated against a copied real-account database: one new Bandcamp album was
+  detected and matched to TIDAL, with zero provider writes.
 
 - Add a local dashboard with last run, pending review count, proposed additions, and failures.
 - Add a “Scan now” button.
