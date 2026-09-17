@@ -193,23 +193,30 @@ else if (command === "init") {
   process.env.BCTS_PIPELINE = "1";
   const scanConfig = loadConfig(option("--config") ?? configPath());
   process.env.TIDAL_TOKEN_PATH = resolveTokenPath(scanConfig);
+  const databasePath =
+    option("--database") ??
+    process.env.BCTS_DATABASE ??
+    scanConfig.storage.database;
+  const beforeRefresh = readWishlistState(databasePath);
   await import("./scan-bandcamp");
   await import("../tidal-export-library");
   await import("../tidal-scan");
   await import("./sync");
-  const config = loadConfig(option("--config") ?? configPath());
-  const databasePath =
-    option("--database") ??
-    process.env.BCTS_DATABASE ??
-    config.storage.database;
+  const refresh = summarizeRefresh(beforeRefresh, databasePath);
   output(
     {
       mode: args.includes("--full") ? "full" : "incremental",
       database: databasePath,
+      refresh,
       state: readState(databasePath),
       provider_writes: 0,
     },
-    `Scan complete. Database: ${databasePath}\nProvider writes: 0`,
+    [
+      `Scan complete. Database: ${databasePath}`,
+      `Refresh: ${refresh.discovered} new, ${refresh.changed} changed, ${refresh.removed} removed`,
+      `New items matched: ${refresh.new_matched}; needs review: ${refresh.new_needs_review}; not found: ${refresh.new_not_found}`,
+      "Provider writes: 0",
+    ].join("\n"),
   );
 } else if (command === "import") {
   const provider = rest.shift();
@@ -450,6 +457,102 @@ function readState(databasePath: string): Record<string, number> {
       cause: error,
     });
   }
+}
+
+interface WishlistStateRow {
+  source_item_id: number;
+  source_fingerprint: string;
+  removed_at: string | null;
+}
+
+function readWishlistState(
+  databasePath: string,
+): Map<number, WishlistStateRow> {
+  if (!existsSync(databasePath)) return new Map();
+  const db = new Database(databasePath, { readonly: true });
+  try {
+    const rows = db
+      .query(
+        "SELECT source_item_id, source_fingerprint, removed_at FROM bandcamp_items",
+      )
+      .all() as WishlistStateRow[];
+    return new Map(rows.map((row) => [row.source_item_id, row]));
+  } finally {
+    db.close();
+  }
+}
+
+function summarizeRefresh(
+  before: Map<number, WishlistStateRow>,
+  databasePath: string,
+): {
+  discovered: number;
+  changed: number;
+  removed: number;
+  new_matched: number;
+  new_needs_review: number;
+  new_not_found: number;
+} {
+  const after = readWishlistState(databasePath);
+  const newIds: number[] = [];
+  let discovered = 0;
+  let changed = 0;
+  let removed = 0;
+  for (const [id, current] of after) {
+    const previous = before.get(id);
+    if (!previous) {
+      if (!current.removed_at) {
+        discovered++;
+        changed++;
+        newIds.push(id);
+      }
+      continue;
+    }
+    if (
+      !current.removed_at &&
+      (current.source_fingerprint !== previous.source_fingerprint ||
+        previous.removed_at !== null)
+    ) {
+      changed++;
+      if (previous.removed_at !== null) newIds.push(id);
+    }
+    if (!previous.removed_at && current.removed_at) removed++;
+  }
+
+  const decisions = new Map<number, string>();
+  if (newIds.length && existsSync(databasePath)) {
+    const db = new Database(databasePath, { readonly: true });
+    try {
+      const rows = db
+        .query(
+          "SELECT bandcamp_item_id, status FROM match_decisions WHERE bandcamp_item_id IN (" +
+            newIds.map(() => "?").join(",") +
+            ")",
+        )
+        .all(...newIds) as Array<{ bandcamp_item_id: number; status: string }>;
+      for (const row of rows) decisions.set(row.bandcamp_item_id, row.status);
+    } finally {
+      db.close();
+    }
+  }
+  const statuses = newIds.map((id) => decisions.get(id));
+  return {
+    discovered,
+    changed,
+    removed,
+    new_matched: statuses.filter(
+      (status) =>
+        status === "high_confidence" || status === "medium_confidence",
+    ).length,
+    new_needs_review: statuses.filter(
+      (status) =>
+        status !== undefined &&
+        status !== "high_confidence" &&
+        status !== "medium_confidence" &&
+        status !== "not_found",
+    ).length,
+    new_not_found: statuses.filter((status) => status === "not_found").length,
+  };
 }
 
 function resolveTokenPath(config: ReturnType<typeof loadConfig>): string {
