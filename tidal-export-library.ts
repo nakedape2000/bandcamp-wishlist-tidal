@@ -1,4 +1,10 @@
-import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { loadConfig } from "./src/config";
 import { Terminal } from "./src/terminal";
@@ -58,6 +64,18 @@ function csvEscape(value: unknown): string {
 }
 
 async function exportLibrary(): Promise<LibraryAlbum[]> {
+  const forceFull =
+    process.argv.includes("--full") || process.argv.includes("--full-rescan");
+  let previous: LibraryAlbum[] = [];
+  if (!forceFull && existsSync(jsonPath)) {
+    try {
+      const parsed = JSON.parse(readFileSync(jsonPath, "utf8")) as unknown;
+      if (Array.isArray(parsed)) previous = parsed as LibraryAlbum[];
+    } catch {
+      // A malformed snapshot is a cache miss; the full traversal repairs it.
+    }
+  }
+  const knownIds = new Set(previous.map((album) => album.tidal_album_id));
   const initialDocument = await client.get<{
     data?: TidalResource;
     included?: TidalResource[];
@@ -79,6 +97,9 @@ async function exportLibrary(): Promise<LibraryAlbum[]> {
   );
 
   const albums = new Map<string, LibraryAlbum>();
+  if (!forceFull && previous.length) {
+    for (const album of previous) albums.set(album.tidal_album_id, album);
+  }
   const addedAtById = new Map<string, string>();
 
   for (const item of firstPageIds) {
@@ -99,13 +120,24 @@ async function exportLibrary(): Promise<LibraryAlbum[]> {
     });
   }
 
+  const firstPageNew = firstPageIds.some(
+    (item) => item.type === "albums" && item.id && !knownIds.has(item.id),
+  );
+  const canUseIncrementalBoundary =
+    !forceFull &&
+    previous.length > 0 &&
+    expectedCount === previous.length &&
+    !firstPageNew;
+
   terminal.debug(
     `Collection reports ${expectedCount ?? "unknown"} albums; first page contains ${albums.size}.`,
   );
 
-  let nextUrl: string | null = itemsRelationship?.links?.next
-    ? absoluteTidalUrl(itemsRelationship.links.next)
-    : null;
+  let nextUrl: string | null = canUseIncrementalBoundary
+    ? null
+    : itemsRelationship?.links?.next
+      ? absoluteTidalUrl(itemsRelationship.links.next)
+      : null;
 
   let page = 1;
 
@@ -119,6 +151,9 @@ async function exportLibrary(): Promise<LibraryAlbum[]> {
       links?: { next?: string };
     }>(nextUrl);
     const pageItems = asArray(document.data);
+    const pageHasNew = pageItems.some(
+      (item) => item.type === "albums" && item.id && !knownIds.has(item.id),
+    );
 
     terminal.debug(`Page ${page}: ${pageItems.length} album references.`);
 
@@ -148,6 +183,14 @@ async function exportLibrary(): Promise<LibraryAlbum[]> {
     nextUrl = document.links?.next
       ? absoluteTidalUrl(document.links.next)
       : null;
+
+    if (
+      !forceFull &&
+      previous.length > 0 &&
+      (expectedCount === null || expectedCount >= previous.length) &&
+      !pageHasNew
+    )
+      nextUrl = null;
 
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
