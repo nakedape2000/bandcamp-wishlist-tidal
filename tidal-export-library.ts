@@ -151,10 +151,6 @@ async function exportLibrary(): Promise<LibraryAlbum[]> {
       links?: { next?: string };
     }>(nextUrl);
     const pageItems = asArray(document.data);
-    const pageHasNew = pageItems.some(
-      (item) => item.type === "albums" && item.id && !knownIds.has(item.id),
-    );
-
     terminal.debug(`Page ${page}: ${pageItems.length} album references.`);
 
     /*
@@ -183,14 +179,6 @@ async function exportLibrary(): Promise<LibraryAlbum[]> {
     nextUrl = document.links?.next
       ? absoluteTidalUrl(document.links.next)
       : null;
-
-    if (
-      !forceFull &&
-      previous.length > 0 &&
-      (expectedCount === null || expectedCount >= previous.length) &&
-      !pageHasNew
-    )
-      nextUrl = null;
 
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
