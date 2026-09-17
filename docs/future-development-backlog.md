@@ -415,7 +415,7 @@ Do not put access tokens or client secrets in this YAML. Use the OS keychain, an
 
 ## M6 — Public release foundation
 
-**Status:** Acceptance in progress. Public project documentation, security and
+**Status:** Complete. Public project documentation, security and
 privacy guidance, support matrix, migration guide, package metadata, Docker
 review-image definition, issue templates, and CI/release runbooks are present.
 The repository history has been rewritten to remove personal `output/` data.
@@ -423,11 +423,11 @@ GitHub Support ticket `#4759477` removed internal references for PR #1–#5 and
 confirmed that the sensitive data was cleared from cache; the old commit hashes
 are no longer accessible. Public visibility, private vulnerability reporting,
 secret scanning, push protection, Dependabot security updates, and the
-`Protect main` ruleset are enabled. The OSV-based dependency audit has passed on
-the cleaned `main` history. Signed release `v0.1.0` exposed two packaging
-defects during installed-package acceptance: `--help` started a sync and the
-offline tutorial fixtures were absent. M6 acceptance now requires corrected
-patch release `v0.1.1` to pass the same macOS and Linux smoke tests.
+`Protect main` ruleset are enabled. Signed patch release `v0.1.1` corrected the
+two packaging defects exposed by `v0.1.0` acceptance. Its tag, checksum, SLSA
+provenance, macOS installation, and clean Linux-container installation were
+verified; the packaged `--help`, `doctor`, and offline tutorial all passed with
+zero provider writes.
 
 **Goal:** Make the project understandable, secure, and installable by other users.
 
@@ -467,7 +467,7 @@ patch release `v0.1.1` to pass the same macOS and Linux smoke tests.
 
 ## M7 — Optional local web application and scheduling
 
-**Status:** Design specified; implementation starts after M6 release acceptance.
+**Status:** Ready for implementation; M6 release acceptance is complete.
 See the [M7 design](m7-design.md) and [M7 verification runbook](m7-verification.md).
 
 **Goal:** Make recurring use feel like an appliance while preserving self-hosting.
@@ -645,23 +645,19 @@ applying → retryable_failure | unknown_outcome | permanent_failure
 
 The highest-value next sprint should be:
 
-1. Complete M6 acceptance with corrected patch release `v0.1.1`; verify its
-   signature, checksum, provenance attestation, and downloadable package.
-2. Install the packaged CLI in fresh supported macOS and Linux environments and
-   run the credential-free tutorial, `sync doctor`, and dry-run workflow.
-3. Start M7 with a dashboard showing the last run, pending reviews, proposed
+1. Start M7 with a dashboard showing the last run, pending reviews, proposed
    additions, failures, and the next scheduled scan.
-4. Add explicit “Scan now”, “Review matches”, and “Create plan” actions while
+2. Add explicit “Scan now”, “Review matches”, and “Create plan” actions while
    keeping all provider writes disabled in those flows.
-5. Add the separate, conspicuous apply flow backed by the existing immutable-plan
+3. Add the separate, conspicuous apply flow backed by the existing immutable-plan
    and confirmation boundary.
-6. Add container health/readiness endpoints, database backup/export, and an
+4. Add container health/readiness endpoints, database backup/export, and an
    activity log with downloadable reports.
-7. Add opt-in scheduling and notifications only after the dashboard and recovery
+5. Add opt-in scheduling and notifications only after the dashboard and recovery
    paths have acceptance coverage.
 
-This order closes the public-release gate before extending the optional local web
-application, while retaining the CLI as the canonical automation surface.
+This order extends the optional local web application while retaining the CLI
+as the canonical automation surface.
 
 ## Definition of done for recurring use
 
