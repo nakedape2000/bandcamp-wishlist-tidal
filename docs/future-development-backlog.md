@@ -486,6 +486,22 @@ See the [M7 design](m7-design.md) and [M7 verification runbook](m7-verification.
 - Validated against a copied real-account database: one new Bandcamp album was
   detected and matched to TIDAL, with zero provider writes.
 
+#### M7.x — Guided interactive CLI
+
+The guided CLI is a separate M7 workstream layered over the existing canonical
+commands. It is designed for recurring use without requiring users to
+memorize multiple commands. See the [guided CLI design](m7-cli-design.md) and
+[verification runbook](m7-cli-verification.md).
+
+- Add `sync guided` with a status home screen and explicit refresh, review,
+  plan, and exit choices.
+- Show a precise refresh delta, including new/changed/removed wishlist items,
+  new match outcomes, proposed additions, elapsed time, and provider writes.
+- Keep refresh, review, and plan read-only; keep apply as a separate explicit
+  safety boundary.
+- Preserve direct commands, JSON automation, non-TTY determinism, and existing
+  OAuth, SQLite, collection, and audit semantics.
+
 - Add a local dashboard with last run, pending review count, proposed additions, and failures.
 - Add a “Scan now” button.
 - Add a “Review matches” queue.
