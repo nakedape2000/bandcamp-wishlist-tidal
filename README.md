@@ -96,7 +96,7 @@ docker compose config
 docker compose up --build
 ```
 
-Then open <http://127.0.0.1:4173>. Compose stores local state in `./data` and
+Then open <http://127.0.0.1:4173>. Compose stores local state in `./output` and
 binds the dashboard to localhost. See the complete
 [installation and troubleshooting guide](docs/m9-installation.md).
 
@@ -119,7 +119,7 @@ the project:
 | Platform | Default location |
 | --- | --- |
 | Bun checkout or package project | `./config.json`, `./output/` |
-| Docker | `./data` in the host folder |
+| Docker | `./output` in the host folder |
 
 The directory contains configuration, the SQLite database, reports, and the
 TIDAL token. Do not commit it or upload it. A platform-specific data directory
