@@ -467,12 +467,40 @@ zero provider writes.
 
 ## M7 — Optional local web application and scheduling
 
-**Status:** Ready for implementation; M6 release acceptance is complete.
+**Status:** M7.0 incremental refresh is implemented and accepted against a
+real Bandcamp/TIDAL account; dashboard and later slices remain to be
+implemented. M6 release acceptance is complete.
 See the [M7 design](m7-design.md) and [M7 verification runbook](m7-verification.md).
 
 **Goal:** Make recurring use feel like an appliance while preserving self-hosting.
 
 ### Tasks
+
+#### M7.0 — Incremental refresh
+
+- Reuse cached match results for unchanged Bandcamp albums.
+- Reuse the previous TIDAL library snapshot when the collection boundary is
+  unchanged.
+- Fall back to a full TIDAL traversal when a new album ID or collection-count
+  change is detected, so additions and removals remain correct.
+- Validated against a copied real-account database: one new Bandcamp album was
+  detected and matched to TIDAL, with zero provider writes.
+
+#### M7.x — Guided interactive CLI
+
+The guided CLI is a separate M7 workstream layered over the existing canonical
+commands. It is designed for recurring use without requiring users to
+memorize multiple commands. See the [guided CLI design](m7-cli-design.md) and
+[verification runbook](m7-cli-verification.md).
+
+- Add `sync guided` with a status home screen and explicit refresh, review,
+  plan, and exit choices.
+- Show a precise refresh delta, including new/changed/removed wishlist items,
+  new match outcomes, proposed additions, elapsed time, and provider writes.
+- Keep refresh, review, and plan read-only; keep apply as a separate explicit
+  safety boundary.
+- Preserve direct commands, JSON automation, non-TTY determinism, and existing
+  OAuth, SQLite, collection, and audit semantics.
 
 - Add a local dashboard with last run, pending review count, proposed additions, and failures.
 - Add a “Scan now” button.

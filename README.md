@@ -1,281 +1,167 @@
 # Bandcamp Wishlist to TIDAL
 
-[![CI](https://github.com/nakedape2000/bandcamp-wishlist-tidal/actions/workflows/ci.yml/badge.svg)](https://github.com/nakedape2000/bandcamp-wishlist-tidal/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+Keep a public Bandcamp wishlist and a TIDAL library in sync, with a human
+review step before anything can change in TIDAL.
 
-Export a **public** Bandcamp wishlist to a single, easy-to-parse JSON file.
+This local-first tool finds TIDAL matches for albums saved on Bandcamp, shows
+uncertain matches side by side, and prepares a clear list of additions.
+Refreshing and reviewing never writes to your TIDAL account.
 
-A zero-dependency [Bun](https://bun.sh) + TypeScript CLI. It reads the wishlist
-the same way Bandcamp's own web UI does: it fetches the public profile page once
-to resolve the account's `fan_id`, then pages through Bandcamp's `wishlist_items`
-API until the whole list is collected. No login, no credentials — it only works
-with wishlists that are public (the Bandcamp default).
+![Local dashboard showing the Bandcamp to TIDAL review workflow](docs/images/dashboard-overview.png)
 
-## Modern sync CLI
+The review queue keeps the human decision visible and separate from any write:
 
-The unified entry point is safe to use offline while setting up a local
-installation:
+![Review queue with candidate actions](docs/images/dashboard-review.png)
+
+## How it works
+
+1. Enter the username of a **public** Bandcamp wishlist.
+2. Connect TIDAL through its normal authorization page.
+3. Start a read-only refresh. The app compares the wishlist with your TIDAL
+   library and reuses previous results where possible.
+4. Review uncertain matches in the local dashboard. Approve, reject, defer,
+   mark an album unavailable, or choose a different TIDAL candidate.
+5. Review the exact addition list. Only a separate, explicit confirmation can
+   add albums to TIDAL.
+
+The app never removes albums from TIDAL. If a TIDAL token expires, the dashboard
+and diagnostics explain when reauthorization is needed.
+
+## What you get
+
+- A simple local dashboard for refresh, review, and addition preparation.
+- Match explanations, confidence scores, links to both services, and artwork
+  for the selected candidate.
+- Clear categories for already saved, approved, needs review, unavailable, and
+  not found albums.
+- Incremental refreshes that detect new or removed wishlist items.
+- Backups, activity history, and downloadable reports stored locally.
+- Dry-run behavior by default and no telemetry.
+
+## Safety and privacy
+
+- Your Bandcamp wishlist must be public; no Bandcamp password is needed.
+- TIDAL credentials and tokens stay on your computer and never reach the
+  browser dashboard.
+- The dashboard listens on `127.0.0.1` by default.
+- Refresh, matching, review, and plan creation are read-only with respect to
+  TIDAL.
+- Adding albums requires an immutable reviewed plan plus explicit confirmation.
+
+## Install and start
+
+The latest release is available on the
+[GitHub Releases page](https://github.com/nakedape2000/bandcamp-wishlist-tidal/releases/latest).
+Download the `.tgz` archive and install it in a new empty folder.
+
+### macOS and Linux
 
 ```sh
-bun run sync -- init
-bun run sync -- tutorial
-bun run sync -- config show
-bun run sync -- config set sync.batch_size 10
-bun run sync -- status --json
+mkdir bcts
+cd bcts
+bun init -y
+bun add /path/to/bandcamp-tidal-sync-<version>.tgz
+./node_modules/.bin/bandcamp-tidal-sync start --open
 ```
 
-`init` refuses to overwrite an existing configuration unless `--force` is
-provided. Configuration files are written with restrictive permissions, and
-`security.dry_run_by_default` cannot be disabled through `config set`.
-Use `--json` for automation or `--quiet` to suppress human-readable output.
-Use `--no-color` for accessible/plain terminal output and `--verbose` when
-diagnosing a scan. `init --interactive` prompts for local paths and TIDAL
-region; `init --bandcamp-user NAME --database PATH --output-dir PATH --country DE --locale en-US`
-provides the equivalent headless setup. The generated JSONC includes safety
-comments and defaults but never credentials.
+### Windows PowerShell
 
-The canonical command surface is:
-
-```text
-sync init | config | doctor | auth | import | scan | matches | review
-sync plan | apply | verify | status | logs | export | cache | completions
-sync tutorial | self-update
+```powershell
+mkdir bcts
+cd bcts
+bun init -y
+bun add C:\path\to\bandcamp-tidal-sync-<version>.tgz
+.\node_modules\.bin\bandcamp-tidal-sync start --open
 ```
 
-Generate completion scripts with `bun run sync -- completions zsh` (or
-`bash`, `fish`, `powershell`).
+The launcher checks the runtime, configuration, data directory, and dashboard
+port before opening the browser. Use `start --check` for diagnostics only.
+Stop the local service with `Ctrl+C`.
 
-After setup, `bun run sync -- scan` is the canonical read-only refresh. It
-updates the public Bandcamp wishlist, current TIDAL library snapshot, catalogue
-matches, and SQLite state. Use `--verbose` for request details and `--json` for
-a single machine-readable summary. It never adds or removes TIDAL albums.
+Docker is also supported from a repository checkout (the `.tgz` package is the
+Bun installation path):
 
-### TIDAL authorization recovery
-
-`bun run sync -- auth tidal` explains the requested read/write collection
-scopes, opens the browser when possible, and always prints a fallback URL. It
-does not add albums. If the callback port is busy, close the process using it
-or configure another registered localhost `TIDAL_REDIRECT_URI`. If the token
-is expired or lacks a required scope, `bun run sync -- auth status` and
-`bun run sync -- doctor` report that condition; rerun `auth tidal` to replace
-the local token.
-
-## Requirements
-
-- [Bun](https://bun.sh) 1.x
-
-## Install
-
-```bash
-git clone https://github.com/nakedape2000/bandcamp-wishlist-tidal.git
-cd bandcamp-wishlist-tidal
-bun install
+```sh
+docker compose config
+docker compose up --build
 ```
 
-## Usage
+Then open <http://127.0.0.1:4173>. Compose stores local state in `./data` and
+binds the dashboard to localhost. See the complete
+[installation and troubleshooting guide](docs/m9-installation.md).
 
-```bash
-bun run src/cli.ts --user <username> [options]
+## First use
+
+When the dashboard opens, choose **Run first scan** or **Scan now**. The first
+refresh may take time for a large TIDAL library; progress is shown and the
+browser remains local. The overview then tells you how many albums were found,
+matched, already saved, or need your decision.
+
+The **Review** section is where you decide about uncertain matches. The **Add
+to TIDAL** section is a separate safety boundary: inspect the exact albums,
+check the confirmation, and only then choose to add them.
+
+## Data location
+
+New installations keep their local state in one predictable directory:
+
+| Platform | Default location |
+| --- | --- |
+| macOS | `~/Library/Application Support/bandcamp-tidal-sync` |
+| Linux | `$XDG_STATE_HOME/bandcamp-tidal-sync`, or `~/.local/state/bandcamp-tidal-sync` |
+| Windows | `%APPDATA%\bandcamp-tidal-sync` |
+| Docker | `./data` in the host folder |
+
+The directory contains configuration, the SQLite database, reports, backups,
+and the TIDAL token. Existing installations with a project-local `config.json`
+keep using that configuration and database.
+
+## Updating and recovery
+
+Before an update, create a local backup:
+
+```sh
+bandcamp-tidal-sync backup create
 ```
 
-| Flag       | Default                  | Description                                             |
-| ---------- | ------------------------ | ------------------------------------------------------- |
-| `--user`   | (required)               | Bandcamp username (the `bandcamp.com/<username>` part). |
-| `--out`    | `./output/wishlist.json` | Output file path. Parent dirs are created.              |
-| `--pretty` | off                      | Pretty-print the JSON (2-space indent).                 |
-| `--count`  | `100`                    | Items fetched per API request.                          |
-| `--help`   |                          | Show usage.                                             |
+Stop the service, install the new archive, and run
+`bandcamp-tidal-sync start --check`. To roll back, reinstall the previous
+archive. Restore a backup to a new database path first whenever possible.
+Backups and restores never write to TIDAL.
 
-Example:
+## Limitations
 
-```bash
-bun run src/cli.ts --user jzstern --pretty
-# Resolving fan id for "jzstern"…
-# Fetching wishlist (fan_id 1238758)…
-#   1347 items…
-# Wrote 1347 items → ./output/wishlist.json
-```
+- Only public Bandcamp wishlists are supported.
+- TIDAL is currently the only destination provider.
+- Spotify, Apple Music, and other services are not integrated yet.
+- The Bandcamp endpoint used by the public website is undocumented and may
+  change.
+- The tool adds albums but does not remove anything from TIDAL.
 
-## Output shape
+## Advanced and developer information
 
-```jsonc
-{
-  "source": "bandcamp",
-  "schema_version": 1,
-  "username": "jzstern",
-  "fanId": 1238758,
-  "fetchedAt": "2026-07-17T21:00:00.000Z",
-  "count": 1347,
-  "items": [
-    {
-      "itemId": 2405228465,
-      "itemType": "album",          // "album" | "track"
-      "artist": "Sub Basics & Pugilist",
-      "title": "Control",
-      "url": "https://pugilist.bandcamp.com/album/control",
-      "artUrl": "https://f4.bcbits.com/img/a2643044056_9.jpg",
-      "addedAt": "2026-07-17T07:21:17.000Z"  // ISO 8601, or null
-    }
-  ]
-}
-```
+The CLI remains available for automation, diagnostics, and recovery, but it is
+not required for normal use. Start with the dashboard and installation guide.
 
-## Development
-
-```bash
-bun test          # unit tests for the pure parsing layer
-bunx tsc --noEmit # typecheck
-bun run check     # Biome lint + format
-```
-
-The planned evolution from the current scripts to a recurring Bandcamp → TIDAL
-sync tool is documented in [`docs/future-development-backlog.md`](docs/future-development-backlog.md).
-
-## Project documentation
-
+- [Installation and troubleshooting](docs/m9-installation.md)
+- [M9 verification runbook](docs/m9-verification.md)
 - [Architecture](docs/architecture.md)
 - [Privacy](docs/privacy.md)
-- [Threat model](docs/threat-model.md)
 - [Credential handling](docs/credentials.md)
-- [Migration from legacy scripts](docs/migration.md)
+- [Migration from older scripts](docs/migration.md)
 - [Support matrix](docs/support-matrix.md)
-- [Release process](docs/release-process.md)
-- [M7 dashboard design](docs/m7-design.md)
-- [M7 verification runbook](docs/m7-verification.md)
+- [Provider contract](docs/provider-contract.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 
-The package exposes the `bandcamp-tidal-sync` executable for Bun-based installs.
-Use the repository quick start above until a tagged package release is
-published. Node.js is not currently a supported runtime; see the support matrix.
-
-`src/parse.ts` holds the pure, unit-tested parsing functions (tested against real
-captured fixtures in `test/fixtures/`). All network I/O is isolated in
-`src/bandcamp.ts`, so if Bandcamp's internal API ever changes, there's a single
-place to fix.
-
-## Real-account verification
-
-The end-to-end workflow can be tested safely against a real public Bandcamp
-wishlist and a real TIDAL account. The steps below do not write anything to
-TIDAL; `--apply` is intentionally not used.
-
-```bash
-# 1. Export the Bandcamp wishlist into this repository's output directory.
-bun run export -- --user <bandcamp-username> --pretty
-
-# 2. Authenticate TIDAL once (requires TIDAL_CLIENT_ID in .env).
-bun run tidal:auth
-# Open the printed URL, approve access, and wait for the localhost callback.
-
-# 3. Confirm the token and local environment.
-bun run doctor
-
-# 4. Export the current TIDAL library (read-only).
-bun run tidal:export-library
-
-# 5. Search TIDAL and create match records (read-only; can take time).
-BCTS_DATABASE=./output/m2-real.sqlite bun run tidal:scan
-
-# 6. Build the comparison report and inspect the proposed additions.
-bun run tidal-compare-library.ts
-
-# 7. Persist the wishlist, matches, and library snapshot into SQLite.
-BCTS_DATABASE=./output/m2-real.sqlite bun run sync
-
-# 8. Rebuild write manifests from the fresh comparison.
-bun run tidal:plan-additions
-
-# 9. Validate the fresh write plans without making provider changes.
-bun run tidal:add-pilot
-bun run tidal:add-remaining
-```
-
-Expected safety signals: `doctor` reports all checks as `PASS`; the scan writes
-`output/tidal-matches.json`; the comparison report separates already-saved and
-to-save albums; the planning command reports `Provider writes: 0`; and both add
-commands print `Dry run only`. A real TIDAL write
-requires an explicit, separately reviewed `--apply` invocation.
-
-## Review interface
-
-Review uncertain matches in the terminal without opening raw JSON:
-
-```bash
-BCTS_DATABASE=./output/m2-real.sqlite bun run sync -- review browse
-BCTS_DATABASE=./output/m2-real.sqlite bun run sync -- review list --status needs_review
-BCTS_DATABASE=./output/m2-real.sqlite bun run sync -- review show <bandcamp-item-id>
-BCTS_DATABASE=./output/m2-real.sqlite bun run sync -- review pending
-```
-
-Or start the optional local review desk:
-
-```bash
-BCTS_DATABASE=./output/m2-real.sqlite bun run review:web
-```
-
-Open `http://127.0.0.1:4173`. The server binds to localhost unless `--host` is
-provided explicitly. Approve, reject, defer, edit, and unavailable actions only
-save local SQLite decisions. The pending-additions view is a dry-run diff and
-cannot write to TIDAL. TIDAL artwork is read from public album-page metadata;
-account credentials are never sent to the browser.
-
-Portable decisions can be exported and restored with:
-
-```bash
-BCTS_DATABASE=./output/m2-real.sqlite bun run sync -- review export
-BCTS_DATABASE=./output/m2-real.sqlite bun run sync -- review import ./output/review-decisions.v1.json
-```
-
-## Plan and apply
-
-After reviewing and approving local matches, create an immutable write plan:
-
-```bash
-BCTS_DATABASE=./output/m2-real.sqlite bun run sync -- plan --out ./output/tidal-write-plan.json
-```
-
-Inspect the printed `plan_id` and the JSON file. Applying a plan without the
-explicit safety flag is still a dry run:
-
-```bash
-BCTS_DATABASE=./output/m2-real.sqlite bun run sync -- apply <plan-id>
-```
-
-Only a separately reviewed plan can reach the provider, and it requires both
-`--apply` and an interactive confirmation (or `--yes` for an already reviewed
-non-interactive job):
-
-```bash
-BCTS_DATABASE=./output/m2-real.sqlite bun run sync -- apply <plan-id> --apply
-```
-
-Before every batch the current TIDAL library is fetched again. Requests and
-responses are audited in SQLite, successful batches are skipped on resume, and
-the plan is not marked complete unless a post-apply library check finds every
-requested album. No removal operation exists.
-
-## Notes
-
-- The wishlist API is Bandcamp's own undocumented internal endpoint; it can change
-  without notice. Parsing failures surface a clear error rather than writing a
-  partial file.
-- A wishlist set to private returns no items — make it public to export it.
-- Be a good citizen: the tool paces its requests (~4/sec) and fetches only what
-  the public web UI already serves.
+For development, install Bun 1.x and run `bun install`. The full local gate is
+`bun run verify:m9`; it uses fixtures and mocks and performs no provider writes.
 
 ## Disclaimer
 
-Not affiliated with or endorsed by Bandcamp. This tool reads only the public data
-Bandcamp's own web UI already serves, via an undocumented internal endpoint that may
-change or break at any time. Use it for your own wishlists and be considerate of
-Bandcamp's servers — review their [Terms of Use](https://bandcamp.com/terms_of_use)
-and use at your own risk.
-
-## Contributing
-
-Issues and pull requests welcome. Please run `bun test`, `bunx tsc --noEmit`, and
-`bun run check` before opening a PR.
+This project is not affiliated with or endorsed by Bandcamp or TIDAL. Use it
+for your own accounts, follow each service's terms, and review every proposed
+addition before confirming it.
 
 ## License
 

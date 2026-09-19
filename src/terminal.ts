@@ -25,7 +25,8 @@ export class Terminal {
   }
 
   progress(label: string, current: number, total?: number): void {
-    if (this.options.quiet || this.options.json) return;
+    // Progress belongs on stderr so JSON stdout remains machine-readable.
+    if (this.options.quiet) return;
     const width = 20;
     const bar = total
       ? ` [${"#".repeat(Math.round((current / total) * width)).padEnd(width, ".")}] ${current}/${total}`
@@ -44,7 +45,7 @@ export class Terminal {
   }
 
   startSpinner(message: string): () => void {
-    if (this.options.quiet || this.options.json) return () => {};
+    if (this.options.quiet) return () => {};
     if (!process.stderr.isTTY) {
       console.error(message);
       return () => {};
