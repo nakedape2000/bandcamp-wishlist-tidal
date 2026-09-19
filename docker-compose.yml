@@ -4,21 +4,7 @@ services:
     ports:
       - "127.0.0.1:4173:4173"
     volumes:
-      - ./output:/data
+      - ${BCTS_DATA_DIR:-./data}:/data
     environment:
       BCTS_DATABASE: ${BCTS_DATABASE:-/data/data.sqlite}
       BCTS_CONFIG: ${BCTS_CONFIG:-/data/config.json}
-
-  scheduler:
-    profiles: ["scheduler"]
-    build: .
-    volumes:
-      - ./output:/data
-    environment:
-      BCTS_DATABASE: ${BCTS_DATABASE:-/data/data.sqlite}
-      BCTS_CONFIG: ${BCTS_CONFIG:-/data/config.json}
-      BCTS_SCHEDULE_MINUTES: 360
-    command:
-      - sh
-      - -c
-      - while true; do bun run sync -- scan --config "$${BCTS_CONFIG}" --database "$${BCTS_DATABASE}"; sleep "$${BCTS_SCHEDULE_MINUTES}m"; done

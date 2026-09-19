@@ -48,7 +48,7 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - run: bun run verify:m5
+      - run: bun run verify:m9
       - run: BCTS_RELEASE_TAG="$GITHUB_REF_NAME" bun run release:check
       - name: Build package archive
         run: bun pm pack --filename "bandcamp-tidal-sync-${GITHUB_REF_NAME#v}.tgz"

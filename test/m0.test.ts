@@ -8,7 +8,11 @@ import { defaultConfig, fromEnvironment, validateConfig } from "../src/config";
 import { HttpError, requestJson } from "../src/http";
 import { buildImportState } from "../src/import-state";
 import { redact } from "../src/logger";
-import { fetchTidalLibraryIds, TidalClient } from "../src/tidal";
+import {
+  fetchTidalLibraryIds,
+  TidalClient,
+  verifyTidalLibraryIds,
+} from "../src/tidal";
 import { classifyWriteOutcome, shouldRefreshToken } from "../src/write-policy";
 
 const originalFetch = globalThis.fetch;
@@ -148,8 +152,44 @@ test("live library recheck follows pagination and deduplicates ids", async () =>
       ],
     },
   ];
+  const paths: string[] = [];
   const reader = {
-    get: async <T>() => pages.shift() as T,
+    get: async <T>(path: string) => {
+      paths.push(path);
+      return pages.shift() as T;
+    },
   };
   expect([...(await fetchTidalLibraryIds(reader))]).toEqual(["a", "b"]);
+  expect(paths[0]).toBe("/userCollectionAlbums/me?include=items");
+});
+
+test("live library verification waits for provider visibility", async () => {
+  const documents = [
+    { data: { relationships: { items: { data: [] } } } },
+    {
+      data: {
+        relationships: {
+          items: { data: [{ id: "expected", type: "albums" }] },
+        },
+      },
+    },
+  ];
+  const delays: number[] = [];
+  const retries: Array<{ missing: string[]; nextAttempt: number }> = [];
+  const result = await verifyTidalLibraryIds(
+    { get: async <T>() => documents.shift() as T },
+    ["expected"],
+    {
+      attempts: 3,
+      baseDelayMs: 10,
+      sleep: async (ms) => {
+        delays.push(ms);
+      },
+      onRetry: (missing, nextAttempt) => retries.push({ missing, nextAttempt }),
+    },
+  );
+  expect(result).toMatchObject({ missing: [], attempts: 2 });
+  expect([...result.ids]).toEqual(["expected"]);
+  expect(delays).toEqual([10]);
+  expect(retries).toEqual([{ missing: ["expected"], nextAttempt: 2 }]);
 });

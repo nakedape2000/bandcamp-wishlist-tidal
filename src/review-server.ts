@@ -5,6 +5,8 @@ import { isIP } from "node:net";
 import { networkInterfaces } from "node:os";
 import { dirname, join } from "node:path";
 import { loadConfig } from "./config";
+import { M7OperationRunner } from "./m7-runner";
+import { M7Service, redactSensitive } from "./m7-service";
 import { type ReviewAction, ReviewService } from "./review";
 
 const ROOT = join(import.meta.dir, "..", "web", "review");
@@ -19,6 +21,7 @@ export function createReviewHandler(
   csrfToken: string,
   resolveTidalArtwork = createTidalArtworkResolver(),
   allowedHosts = ["127.0.0.1", "localhost", "[::1]"],
+  runtime?: DashboardRuntime,
 ): (request: Request) => Promise<Response> {
   const allowedHostnames = new Set(
     allowedHosts.map(canonicalHost).filter(Boolean),
@@ -36,6 +39,16 @@ export function createReviewHandler(
         `bcts_session=${sessionToken}; HttpOnly; SameSite=Strict; Path=/`,
       );
       return json({ csrfToken }, 200, headers);
+    }
+
+    if (runtime) {
+      const dashboardResponse = await runtime.handle(
+        request,
+        url,
+        headers,
+        () => authorizedMutation(request, sessionToken, csrfToken),
+      );
+      if (dashboardResponse) return dashboardResponse;
     }
 
     if (url.pathname === "/api/reviews" && request.method === "GET") {
@@ -88,6 +101,7 @@ export function createReviewHandler(
           body.action === "edit"
             ? reviews.editMetadata(id, body.metadata ?? {})
             : reviews.decide(id, body.action as ReviewAction, body.candidateId);
+        runtime?.recordReviewUpdate(id, body.action ?? "unknown");
         return json({ decision, providerWrites: 0 }, 200, headers);
       } catch (error) {
         return json(
@@ -110,6 +124,377 @@ export function createReviewHandler(
     }
     return new Response("Not found", { status: 404, headers });
   };
+}
+
+export class DashboardRuntime {
+  private operation: {
+    kind: "scan" | "apply";
+    startedAt: string;
+    message: string;
+  } | null = null;
+
+  constructor(
+    readonly service: M7Service,
+    private readonly configPath?: string,
+    readonly runner: Pick<
+      M7OperationRunner,
+      "active" | "run"
+    > = new M7OperationRunner(),
+    private readonly fetcher: Fetcher = fetch,
+  ) {}
+
+  recordReviewUpdate(itemId: number, action: string): void {
+    this.service.recordActivity(
+      "review.updated",
+      "completed",
+      `Saved ${action} review action for item ${itemId}.`,
+      { itemId, action, providerWrites: 0 },
+    );
+  }
+
+  private get busy(): boolean {
+    return this.operation !== null || this.runner.active;
+  }
+
+  async handle(
+    request: Request,
+    url: URL,
+    headers: Headers,
+    authorized: () => boolean,
+  ): Promise<Response | null> {
+    if (url.pathname === "/api/dashboard" && request.method === "GET")
+      return json(
+        {
+          ...this.service.summary(),
+          activeOperation:
+            this.operation ??
+            (this.runner.active
+              ? {
+                  kind: "operation",
+                  startedAt: null,
+                  message: "Operation in progress",
+                }
+              : null),
+        },
+        200,
+        headers,
+      );
+    if (url.pathname === "/api/activity" && request.method === "GET")
+      return json(
+        { records: this.service.activities(numberParam(url, "limit") ?? 50) },
+        200,
+        headers,
+      );
+    if (url.pathname === "/api/health" && request.method === "GET")
+      return json(
+        this.service.health(this.busy ? "running" : null),
+        200,
+        headers,
+      );
+    if (url.pathname === "/api/ready" && request.method === "GET") {
+      try {
+        const health = this.service.health(this.busy ? "running" : null);
+        return json(health, health.ready ? 200 : 503, headers);
+      } catch (error) {
+        return json({ ready: false, error: message(error) }, 503, headers);
+      }
+    }
+    if (url.pathname === "/api/plans" && request.method === "GET")
+      return json({ records: this.service.listPlans() }, 200, headers);
+    const planMatch = url.pathname.match(/^\/api\/plans\/([^/]+)$/);
+    if (planMatch && request.method === "GET") {
+      const planId = decodeURIComponent(planMatch[1] ?? "");
+      const plan = this.service.getPlan(planId);
+      if (!plan) return json({ error: "Plan not found" }, 404, headers);
+      if (url.searchParams.get("download") === "1") {
+        headers.set(
+          "Content-Disposition",
+          `attachment; filename="${safeFilename(planId)}.json"`,
+        );
+        this.service.recordActivity(
+          "plan.exported",
+          "completed",
+          `Exported immutable plan ${planId}.`,
+          { planId, providerWrites: 0 },
+        );
+      }
+      return json(redactSensitive(plan), 200, headers);
+    }
+    if (url.pathname === "/api/schedule" && request.method === "GET")
+      return json(this.service.schedule(), 200, headers);
+    if (url.pathname === "/api/notifications" && request.method === "GET")
+      return json(this.service.notification(), 200, headers);
+    if (url.pathname === "/api/report" && request.method === "GET") {
+      headers.set(
+        "Content-Disposition",
+        'attachment; filename="bcts-activity-report.json"',
+      );
+      const report = redactSensitive({
+        schema_version: 1,
+        exported_at: new Date().toISOString(),
+        summary: this.service.summary(),
+        activity: this.service.activities(200),
+        plans: this.service.listPlans(),
+      });
+      this.service.recordActivity(
+        "report.exported",
+        "completed",
+        "Exported dashboard activity report.",
+        { providerWrites: 0 },
+      );
+      return json(report, 200, headers);
+    }
+
+    if (
+      [
+        "/api/operations/scan",
+        "/api/plans",
+        "/api/schedule",
+        "/api/notifications",
+        "/api/backup",
+      ].includes(url.pathname) &&
+      request.method === "POST"
+    ) {
+      if (!authorized())
+        return json({ error: "Invalid session or CSRF token" }, 403, headers);
+      try {
+        if (url.pathname === "/api/operations/scan")
+          return this.startScan(headers);
+        if (url.pathname === "/api/plans") {
+          const result = this.service.createPlan();
+          return json(
+            { ...result, providerWrites: 0 },
+            result.reused ? 200 : 201,
+            headers,
+          );
+        }
+        if (url.pathname === "/api/schedule") {
+          const body = await readJsonBody(request);
+          return json(
+            this.service.updateSchedule(
+              body.enabled === true,
+              Number(body.intervalMinutes),
+            ),
+            200,
+            headers,
+          );
+        }
+        if (url.pathname === "/api/notifications") {
+          const body = await readJsonBody(request);
+          return json(
+            this.service.updateNotification(
+              body.enabled === true,
+              typeof body.webhookUrl === "string" ? body.webhookUrl : undefined,
+            ),
+            200,
+            headers,
+          );
+        }
+        const path = join(
+          this.service.config.storage.output_dir,
+          "backups",
+          `bcts-${new Date().toISOString().replaceAll(":", "-")}.sqlite`,
+        );
+        return json(
+          { path: this.service.createBackup(path), credentialsIncluded: false },
+          201,
+          headers,
+        );
+      } catch (error) {
+        return json({ error: message(error) }, 400, headers);
+      }
+    }
+
+    const applyMatch = url.pathname.match(/^\/api\/plans\/([^/]+)\/apply$/);
+    if (applyMatch && request.method === "POST") {
+      if (!authorized())
+        return json({ error: "Invalid session or CSRF token" }, 403, headers);
+      try {
+        const planId = decodeURIComponent(applyMatch[1] ?? "");
+        const body = await readJsonBody(request);
+        if (body.confirmed !== true)
+          return json(
+            {
+              error:
+                "Confirm that the displayed albums should be added to TIDAL.",
+            },
+            400,
+            headers,
+          );
+        return this.startApply(planId, headers);
+      } catch (error) {
+        return json({ error: message(error) }, 400, headers);
+      }
+    }
+    return null;
+  }
+
+  startScan(headers = securityHeaders(), scheduled = false): Response {
+    if (this.busy)
+      return json(
+        { error: "Another operation is already running." },
+        409,
+        headers,
+      );
+    const activity = this.service.recordActivity(
+      "scan.started",
+      "running",
+      "Dashboard read-only refresh started.",
+    );
+    this.operation = {
+      kind: "scan",
+      startedAt: new Date().toISOString(),
+      message: "Starting read-only refresh",
+    };
+    void this.runner
+      .run(["scan", "--json"], {
+        databasePath: this.service.databasePath,
+        configPath: this.configPath,
+        onOutput: (_stream, text) => this.updateProgress(text),
+      })
+      .then((result) => {
+        if (result.exitCode === 0)
+          this.service.finishActivity(
+            activity,
+            "completed",
+            "Dashboard read-only refresh completed.",
+            { providerWrites: 0, output: safeJson(result.stdout) },
+          );
+        else
+          this.service.finishActivity(
+            activity,
+            "failed",
+            "Dashboard read-only refresh failed.",
+            { error: result.stderr.slice(-2000) },
+          );
+        if (scheduled)
+          void this.sendScheduledNotification(result.exitCode === 0);
+      })
+      .catch((error) => {
+        this.service.finishActivity(
+          activity,
+          "failed",
+          "Dashboard read-only refresh failed.",
+          { error: message(error) },
+        );
+        if (scheduled) void this.sendScheduledNotification(false);
+      })
+      .finally(() => {
+        this.operation = null;
+      });
+    return json(
+      { activityId: activity, status: "running", providerWrites: 0 },
+      202,
+      headers,
+    );
+  }
+
+  private async sendScheduledNotification(ok: boolean): Promise<void> {
+    const url = this.service.webhookUrl();
+    if (!url) return;
+    const summary = this.service.summary();
+    try {
+      const response = await this.fetcher(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "bcts.scan.completed",
+          ok,
+          completedAt: new Date().toISOString(),
+          counts: {
+            wishlist: summary.state.wishlist_items,
+            pendingReview: summary.pendingReviews,
+            proposedAdditions: summary.proposedAdditions,
+            failures: summary.recentFailures,
+          },
+          providerWrites: 0,
+        }),
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      this.service.recordActivity(
+        "notification.delivered",
+        "completed",
+        "Scheduled refresh notification delivered.",
+        { target: new URL(url).host },
+      );
+    } catch (error) {
+      this.service.recordActivity(
+        "notification.failed",
+        "failed",
+        "Scheduled refresh notification failed.",
+        { target: new URL(url).host, error: message(error) },
+      );
+    }
+  }
+
+  startApply(planId: string, headers = securityHeaders()): Response {
+    if (this.busy)
+      return json(
+        { error: "Another operation is already running." },
+        409,
+        headers,
+      );
+    if (!this.service.getPlan(planId))
+      return json({ error: "Plan not found" }, 404, headers);
+    const activity = this.service.recordActivity(
+      "apply.started",
+      "running",
+      `Dashboard apply started for plan ${planId}.`,
+      { planId },
+    );
+    this.operation = {
+      kind: "apply",
+      startedAt: new Date().toISOString(),
+      message: `Starting apply for ${planId}`,
+    };
+    void this.runner
+      .run(["apply", planId, "--apply", "--yes"], {
+        databasePath: this.service.databasePath,
+        configPath: this.configPath,
+        onOutput: (_stream, text) => this.updateProgress(text),
+      })
+      .then((result) =>
+        this.service.finishActivity(
+          activity,
+          result.exitCode === 0 ? "completed" : "failed",
+          result.exitCode === 0
+            ? `Apply completed for plan ${planId}.`
+            : `Apply failed for plan ${planId}.`,
+          {
+            planId,
+            output: result.stdout.slice(-4000),
+            error: result.stderr.slice(-2000),
+          },
+        ),
+      )
+      .catch((error) =>
+        this.service.finishActivity(
+          activity,
+          "failed",
+          `Apply failed for plan ${planId}.`,
+          { planId, error: message(error) },
+        ),
+      )
+      .finally(() => {
+        this.operation = null;
+      });
+    return json(
+      { activityId: activity, status: "running", planId },
+      202,
+      headers,
+    );
+  }
+
+  private updateProgress(text: string): void {
+    if (!this.operation) return;
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const latest = lines.at(-1);
+    if (latest) this.operation.message = String(redactSensitive(latest));
+  }
 }
 
 export function createTidalArtworkResolver(
@@ -165,15 +550,19 @@ export function startReviewServer(): void {
   );
   if (!Number.isInteger(port) || port < 1 || port > 65535)
     throw new Error("Review server port is invalid.");
+  const requestedConfig = option(args, "--config");
+  const config = loadConfig(requestedConfig);
   const databasePath =
     option(args, "--database") ??
     process.env.BCTS_DATABASE ??
-    loadConfig().storage.database;
+    config.storage.database;
   if (databasePath !== ":memory:")
     mkdirSync(dirname(databasePath), { recursive: true });
   const database = new Database(databasePath);
   if (databasePath !== ":memory:") chmodSync(databasePath, 0o600);
   const reviews = new ReviewService(database);
+  const service = new M7Service(database, databasePath, config);
+  const runtime = new DashboardRuntime(service, requestedConfig);
   const session = randomBytes(32).toString("hex");
   const csrf = randomBytes(32).toString("hex");
   const allowedHosts =
@@ -183,13 +572,59 @@ export function startReviewServer(): void {
   Bun.serve({
     hostname: host,
     port,
-    fetch: createReviewHandler(reviews, session, csrf, undefined, allowedHosts),
+    fetch: createReviewHandler(
+      reviews,
+      session,
+      csrf,
+      undefined,
+      allowedHosts,
+      runtime,
+    ),
   });
-  console.log(`Review UI: http://${host}:${port}`);
+  setInterval(() => {
+    const schedule = service.schedule();
+    if (
+      schedule.enabled &&
+      schedule.nextRunAt &&
+      Date.parse(schedule.nextRunAt) <= Date.now() &&
+      !runtime.runner.active
+    ) {
+      service.markScheduledRun();
+      runtime.startScan(undefined, true);
+    }
+  }, 30_000).unref();
+  console.log(`Dashboard: http://${host}:${port}`);
   console.log(`Database: ${databasePath}`);
-  console.log("Provider writes: disabled");
+  console.log(
+    "Provider writes: require an explicit immutable plan confirmation",
+  );
   if (host !== "127.0.0.1" && host !== "localhost" && host !== "::1")
     console.warn(`LAN exposure explicitly enabled on ${host}.`);
+}
+
+async function readJsonBody(
+  request: Request,
+): Promise<Record<string, unknown>> {
+  const raw = await request.text();
+  if (new TextEncoder().encode(raw).byteLength > 16_384)
+    throw new Error("Request body too large");
+  return raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+}
+
+function message(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function safeJson(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value.slice(-4000);
+  }
+}
+
+function safeFilename(value: string): string {
+  return value.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 160) || "plan";
 }
 
 function authorizedMutation(

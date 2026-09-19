@@ -4,14 +4,14 @@ import { dirname } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { idempotencyKeyForBatch } from "../src/batches";
 import { loadConfig } from "../src/config";
+import { destinationProviderFor } from "../src/providers";
 import { ReviewService } from "../src/review";
 import { SyncStore } from "../src/sync-store";
-import { fetchTidalLibraryIds, TidalClient } from "../src/tidal";
 import {
   buildWritePlan,
   hashResponseBody,
+  numberedPlanBatches,
   persistWritePlan,
-  planBatches,
   type WritePlan,
 } from "../src/write-orchestrator";
 
@@ -35,7 +35,10 @@ try {
     else if (subcommand === "show") showPlan(requiredPlanId("plan show"));
     else throw new Error(`Unknown plan command: ${subcommand}`);
   } else if (command === "apply") await applyPlan(requiredPlanId());
-  else throw new Error("Use `sync plan` or `sync apply <plan-id>`. ");
+  else
+    throw new Error(
+      "Use `bandcamp-tidal-sync plan` or `bandcamp-tidal-sync apply <plan-id>`.",
+    );
 } finally {
   database.close();
 }
@@ -67,7 +70,7 @@ function createPlan(): void {
   console.log(JSON.stringify(summary, null, 2));
   if (!args.includes("--json"))
     console.log(
-      "Plan is immutable. Inspect it, then use `sync apply <plan-id> --apply`.",
+      "Plan is immutable. Inspect it, then use `bandcamp-tidal-sync apply <plan-id> --apply`.",
     );
 }
 
@@ -109,32 +112,31 @@ async function applyPlan(planId: string): Promise<void> {
   await confirm(
     `Apply plan ${planId}: add ${plan.additionCount} album(s) to TIDAL collection ${plan.collection}?`,
   );
-  const client = new TidalClient();
-  const liveIds = await fetchTidalLibraryIds(client);
+  const provider = providerForPlan(plan.provider);
+  const liveIds = await provider.readCollectionAlbumIds(plan.collection);
   const pending = plan.items.filter((item) => !liveIds.has(item.tidalAlbumId));
   console.log(
     `Live TIDAL library: ${liveIds.size}; skipped already saved: ${plan.items.length - pending.length}; pending: ${pending.length}.`,
   );
   if (!pending.length) {
+    persistVerifiedLibrary(liveIds);
     store.setWritePlanStatus(planId, "completed");
     console.log("Nothing to add after live recheck. Provider writes: 0.");
     return;
   }
-  const pendingPlan = {
-    ...plan,
-    items: pending,
-    additionCount: pending.length,
-  };
-  const batches = planBatches(pendingPlan, config.sync.batch_size);
+  const batches = numberedPlanBatches(plan, config.sync.batch_size).filter(
+    (batch) => batch.albumIds.some((id) => !liveIds.has(id)),
+  );
   const priorAttempts = new Map(
     store
       .listWriteAttempts(planId)
       .map((attempt) => [Number(attempt.batch_number), attempt]),
   );
+  let providerWrites = 0;
   store.setWritePlanStatus(planId, "applying");
   for (const [index, batch] of batches.entries()) {
     if (index > 0) await sleep(config.sync.delay_between_batches_ms);
-    const batchNumber = index + 1;
+    const batchNumber = batch.batchNumber;
     const prior = priorAttempts.get(batchNumber);
     if (prior?.status === "success" || prior?.status === "skipped") {
       console.log(
@@ -142,16 +144,22 @@ async function applyPlan(planId: string): Promise<void> {
       );
       continue;
     }
-    const batchLiveIds = await fetchTidalLibraryIds(client);
-    const batchPendingIds = batch.albumIds.filter(
-      (id) => !batchLiveIds.has(id),
-    );
+    const persistedPayload = prior
+      ? parseAttemptPayload(prior.payload_json)
+      : null;
+    const attemptedIds = persistedPayload
+      ? persistedPayload.data.map((item) => item.id)
+      : batch.albumIds;
+    const batchLiveIds = await provider.readCollectionAlbumIds(plan.collection);
+    const batchPendingIds = attemptedIds.filter((id) => !batchLiveIds.has(id));
     if (!batchPendingIds.length) {
       store.recordWriteAttempt({
         planId,
         batchNumber,
-        idempotencyKey: batch.idempotencyKey,
-        payload: batch.payload,
+        idempotencyKey:
+          (prior?.idempotency_key as string | undefined) ??
+          batch.idempotencyKey,
+        payload: persistedPayload ?? batch.payload,
         startedAt: new Date().toISOString(),
         status: "skipped",
         responseStatus: 200,
@@ -163,13 +171,17 @@ async function applyPlan(planId: string): Promise<void> {
       );
       continue;
     }
-    const batchPayload = {
-      data: batchPendingIds.map((id) => ({ id, type: "albums" as const })),
-    };
-    const batchKey = idempotencyKeyForBatch(
-      `${planId}:${batchNumber}`,
-      batchPendingIds,
-    );
+    const batchPayload =
+      persistedPayload ??
+      ({
+        data: batchPendingIds.map((id) => ({ id, type: "albums" as const })),
+      } satisfies TidalBatchPayload);
+    const batchKey =
+      (prior?.idempotency_key as string | undefined) ??
+      idempotencyKeyForBatch(
+        `${planId}:${batchNumber}`,
+        batchPayload.data.map((item) => item.id),
+      );
     const startedAt = new Date().toISOString();
     store.recordWriteAttempt({
       planId,
@@ -179,12 +191,12 @@ async function applyPlan(planId: string): Promise<void> {
       startedAt,
     });
     try {
-      const result = await client.post(
-        "/userCollectionAlbums/me/relationships/items",
-        batchPayload,
+      const result = await provider.addAlbums(
+        plan.collection,
+        batchPayload.data.map((item) => item.id),
         batchKey,
       );
-      const body = JSON.stringify(result.body ?? null);
+      const body = JSON.stringify(result.responseBody ?? null);
       store.recordWriteAttempt({
         planId,
         batchNumber,
@@ -199,6 +211,7 @@ async function applyPlan(planId: string): Promise<void> {
       console.log(
         `Batch ${batchNumber}/${batches.length}: HTTP ${result.status}; ${batchPendingIds.length} album(s).`,
       );
+      providerWrites += batchPayload.data.length;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       store.recordWriteAttempt({
@@ -217,17 +230,59 @@ async function applyPlan(planId: string): Promise<void> {
       );
     }
   }
-  const verifiedIds = await fetchTidalLibraryIds(client);
-  const missing = pending.filter((item) => !verifiedIds.has(item.tidalAlbumId));
-  if (missing.length) {
+  const verification = await provider.verifyCollectionAlbumIds(
+    plan.collection,
+    plan.items.map((item) => item.tidalAlbumId),
+    {
+      onRetry: (missing, nextAttempt) =>
+        console.log(
+          `TIDAL has not exposed ${missing.length} album(s) yet; verification attempt ${nextAttempt}/3...`,
+        ),
+    },
+  );
+  if (verification.missing.length) {
     store.setWritePlanStatus(planId, "verification_failed");
     throw new Error(
-      `Verification failed: ${missing.length} album(s) are missing from the live library.`,
+      `Verification failed after ${verification.attempts} attempts: ${verification.missing.length} album(s) are missing from the live library.`,
     );
   }
+  persistVerifiedLibrary(verification.ids);
   store.setWritePlanStatus(planId, "completed");
   console.log(
-    `Verified ${pending.length} album(s) in TIDAL. Provider writes: ${pending.length}.`,
+    `Verified ${plan.items.length} album(s) in TIDAL after ${verification.attempts} attempt(s). Provider writes: ${providerWrites}.`,
+  );
+}
+
+function providerForPlan(provider: string) {
+  return destinationProviderFor(provider, config);
+}
+
+interface TidalBatchPayload {
+  data: Array<{ id: string; type: "albums" }>;
+}
+
+function parseAttemptPayload(value: unknown): TidalBatchPayload | null {
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<TidalBatchPayload>;
+    if (!Array.isArray(parsed.data)) return null;
+    const data = parsed.data
+      .filter(
+        (item): item is { id: string; type: "albums" } =>
+          Boolean(item) &&
+          item.type === "albums" &&
+          typeof item.id === "string",
+      )
+      .map((item) => ({ id: item.id, type: "albums" as const }));
+    return data.length ? { data } : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistVerifiedLibrary(ids: Set<string>): void {
+  store.importLibrarySnapshot(
+    [...ids].map((tidalAlbumId) => ({ tidal_album_id: tidalAlbumId })),
   );
 }
 

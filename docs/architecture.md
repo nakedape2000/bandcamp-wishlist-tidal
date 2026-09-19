@@ -6,16 +6,17 @@ same application services.
 
 ## Runtime flow
 
-1. The Bandcamp adapter reads the public wishlist export/API and produces a
-   normalized wishlist snapshot.
-2. The TIDAL adapter authenticates through OAuth, reads the user's library,
-   and searches the catalogue. It does not write during a scan.
+1. The Bandcamp source adapter reads the public wishlist export/API and produces
+   a normalized wishlist snapshot.
+2. A destination-provider adapter authenticates through its local OAuth/token
+   implementation, reads the user's library, and searches the catalogue. TIDAL
+   is the current adapter; it does not write during a scan.
 3. Provider-neutral matching normalizes artist/title metadata, scores
    candidates, and records an explainable decision.
 4. The SQLite state store persists snapshots, decisions, plans, batches, and
    provider responses so interrupted work can resume safely.
 5. Review and planning services turn approved decisions into immutable plans.
-6. The write orchestrator rechecks the live TIDAL library before each batch,
+6. The write orchestrator rechecks the live destination library before each batch,
    performs idempotent additions, and verifies the final library.
 
 ## Boundaries and invariants
@@ -34,5 +35,7 @@ same application services.
 
 Provider-specific HTTP and OAuth behavior lives in adapters. Matching,
 reconciliation, review, planning, and orchestration are provider-neutral. A
-future provider should implement read/search/write capabilities behind the
-same service contracts without changing review or plan semantics.
+future provider implements the compile-time `DestinationProvider` contract and
+declares its capabilities; dynamic plugins are deliberately out of scope. See
+[the provider contract](provider-contract.md) and
+[provider contribution guide](adding-a-provider.md).

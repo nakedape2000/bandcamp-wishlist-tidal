@@ -116,9 +116,10 @@ idempotent or safely reject a conflicting run.
 
 ### M7.3 Explicit apply flow
 
-Add a separate plan detail and apply confirmation flow backed by the existing
-write orchestrator. Require the plan identifier, explicit confirmation, live
-batch progress, stop-on-unknown behavior, and post-apply verification.
+Add a separate exact-addition confirmation flow backed by the existing write
+orchestrator. Keep the immutable reference internal, show the exact album list
+and count, and require an explicit confirmation checkbox before writing. Retain
+live batch progress, stop-on-unknown behavior, and post-apply verification.
 
 **Depends on:** M7.2 and M4 apply semantics.
 

@@ -3,6 +3,7 @@
 .git
 .github
 output
+data
 *.sqlite
 *.tgz
 node_modules

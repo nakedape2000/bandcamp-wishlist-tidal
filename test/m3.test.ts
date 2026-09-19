@@ -9,7 +9,9 @@ import { SyncStore } from "../src/sync-store";
 
 const databases: Database[] = [];
 
-function serviceWithFixture(): ReviewService {
+function serviceWithFixture(
+  library: Array<Record<string, unknown>> = [],
+): ReviewService {
   const database = new Database(":memory:");
   databases.push(database);
   const store = new SyncStore(database);
@@ -32,7 +34,7 @@ function serviceWithFixture(): ReviewService {
       ],
     },
   ]);
-  store.importLibrarySnapshot([]);
+  store.importLibrarySnapshot(library);
   return new ReviewService(database);
 }
 
@@ -61,6 +63,16 @@ describe("ReviewService", () => {
     expect(decision.chosenTidalAlbumId).toBe("t2");
     expect(service.pendingWrite()).toHaveLength(1);
     expect(service.get(7)?.decision?.action).toBe("approved");
+  });
+
+  test("keeps approved matches visible and classifies saved TIDAL albums", () => {
+    const service = serviceWithFixture([{ tidal_album_id: "t1" }]);
+    service.decide(7, "approved", "t1", "2026-09-13T00:00:00.000Z");
+    expect(service.get(7)).toMatchObject({
+      alreadyInTidal: true,
+      decision: { action: "approved", chosenTidalAlbumId: "t1" },
+    });
+    expect(service.pendingWrite()).toEqual([]);
   });
 
   test("exports and imports portable decisions", () => {
