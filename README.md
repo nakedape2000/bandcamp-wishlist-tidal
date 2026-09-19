@@ -52,31 +52,41 @@ and diagnostics explain when reauthorization is needed.
 
 The latest release is available on the
 [GitHub Releases page](https://github.com/nakedape2000/bandcamp-wishlist-tidal/releases/latest).
-Download the `.tgz` archive and install it in a new empty folder.
+The dashboard is currently run from a repository checkout or with Docker. The
+`.tgz` archive is also available for the CLI and packaged experiments; the
+dashboard launcher will be included in a later release.
 
-### macOS and Linux
+### Dashboard from a checkout
+
+```sh
+git clone https://github.com/nakedape2000/bandcamp-wishlist-tidal.git
+cd bandcamp-wishlist-tidal
+bun install
+bun run review:web
+```
+
+Open <http://127.0.0.1:4173> in your browser. Stop the local service with
+`Ctrl+C`.
+
+### Package archive (CLI)
+
+On macOS, Linux, or Windows, install the `.tgz` archive in an empty Bun
+project:
 
 ```sh
 mkdir bcts
 cd bcts
 bun init -y
 bun add /path/to/bandcamp-tidal-sync-<version>.tgz
-./node_modules/.bin/bandcamp-tidal-sync start --open
+./node_modules/.bin/bandcamp-tidal-sync --help
 ```
 
-### Windows PowerShell
+On Windows PowerShell, replace the last two lines with:
 
 ```powershell
-mkdir bcts
-cd bcts
-bun init -y
 bun add C:\path\to\bandcamp-tidal-sync-<version>.tgz
-.\node_modules\.bin\bandcamp-tidal-sync start --open
+.\node_modules\.bin\bandcamp-tidal-sync --help
 ```
-
-The launcher checks the runtime, configuration, data directory, and dashboard
-port before opening the browser. Use `start --check` for diagnostics only.
-Stop the local service with `Ctrl+C`.
 
 Docker is also supported from a repository checkout (the `.tgz` package is the
 Bun installation path):
@@ -86,7 +96,7 @@ docker compose config
 docker compose up --build
 ```
 
-Then open <http://127.0.0.1:4173>. Compose stores local state in `./data` and
+Then open <http://127.0.0.1:4173>. Compose stores local state in `./output` and
 binds the dashboard to localhost. See the complete
 [installation and troubleshooting guide](docs/m9-installation.md).
 
@@ -103,30 +113,24 @@ check the confirmation, and only then choose to add them.
 
 ## Data location
 
-New installations keep their local state in one predictable directory:
+For the current source checkout and release archive, local state stays beside
+the project:
 
 | Platform | Default location |
 | --- | --- |
-| macOS | `~/Library/Application Support/bandcamp-tidal-sync` |
-| Linux | `$XDG_STATE_HOME/bandcamp-tidal-sync`, or `~/.local/state/bandcamp-tidal-sync` |
-| Windows | `%APPDATA%\bandcamp-tidal-sync` |
-| Docker | `./data` in the host folder |
+| Bun checkout or package project | `./config.json`, `./output/` |
+| Docker | `./output` in the host folder |
 
-The directory contains configuration, the SQLite database, reports, backups,
-and the TIDAL token. Existing installations with a project-local `config.json`
-keep using that configuration and database.
+The directory contains configuration, the SQLite database, reports, and the
+TIDAL token. Do not commit it or upload it. A platform-specific data directory
+and guided launcher are planned for a later release.
 
 ## Updating and recovery
 
-Before an update, create a local backup:
+Before an update, stop the service and copy the project-local `output/` folder
+to a safe location. It contains the SQLite database, reports, and token.
 
-```sh
-bandcamp-tidal-sync backup create
-```
-
-Stop the service, install the new archive, and run
-`bandcamp-tidal-sync start --check`. To roll back, reinstall the previous
-archive. Restore a backup to a new database path first whenever possible.
+Reinstall the previous archive or restore the copied folder to roll back.
 Backups and restores never write to TIDAL.
 
 ## Limitations
