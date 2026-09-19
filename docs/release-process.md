@@ -1,8 +1,9 @@
 # Release Process
 
 1. Update the version and `CHANGELOG.md`.
-2. Run the complete command sequence in `docs/m6-verification.md`, including
-   tests, type checking, the release-scoped Biome check, and package inspection.
+2. Run `bun run verify:m9` and the package smoke sequence in
+   `docs/m9-verification.md`, including tests, type checking, formatting, and
+   packaged-install inspection.
 3. Build and inspect release artifacts in a clean checkout. Install the archive
    in a temporary directory with `bun run package:smoke -- <archive.tgz>` so
    `--help`, `doctor`, and the offline tutorial are tested as shipped.

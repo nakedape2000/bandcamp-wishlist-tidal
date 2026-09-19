@@ -79,18 +79,18 @@ if (!existsSync(tokenPath)) {
         status.expired !== true &&
         !status.missing_scopes.length,
       !status.configured
-        ? "not configured; rerun sync auth tidal"
+        ? "not configured; rerun bandcamp-tidal-sync auth tidal"
         : status.expired
-          ? "expired; rerun sync auth tidal"
+          ? "expired; rerun bandcamp-tidal-sync auth tidal"
           : status.missing_scopes.length
-            ? `missing scopes: ${status.missing_scopes.join(", ")}; rerun sync auth tidal`
+            ? `missing scopes: ${status.missing_scopes.join(", ")}; rerun bandcamp-tidal-sync auth tidal`
             : "usable",
     );
   } catch {
     check(
       "TIDAL token status",
       false,
-      "token file is malformed; rerun sync auth tidal",
+      "token file is malformed; rerun bandcamp-tidal-sync auth tidal",
     );
   }
 }

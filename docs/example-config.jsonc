@@ -3,8 +3,8 @@
 {
   "version": 1,
   "storage": {
-    "database": "~/.config/bandcamp-tidal-sync/data.sqlite",
-    "output_dir": "~/.config/bandcamp-tidal-sync/output"
+    "database": "<local-data-directory>/data.sqlite",
+    "output_dir": "<local-data-directory>/output"
   },
   "providers": {
     "bandcamp": {

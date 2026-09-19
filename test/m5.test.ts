@@ -35,7 +35,8 @@ describe("M5 configuration contracts", () => {
         .version,
     ).toBe(1);
     expect(readFileSync(path, "utf8")).toContain("Keep provider tokens");
-    expect(statSync(path).mode & 0o777).toBe(0o600);
+    if (process.platform !== "win32")
+      expect(statSync(path).mode & 0o777).toBe(0o600);
     expect(defaultConfig().matching.cache_ttl_days).toBe(30);
     expect(defaultConfig().security.bind_host).toBe("127.0.0.1");
   });
@@ -114,6 +115,29 @@ describe("M5 configuration contracts", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).not.toContain("private-token-value");
     expect(JSON.parse(result.stdout).missing_scopes).toEqual([]);
+  });
+
+  test("auth revoke removes only the local token and reports its remote limitation", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bcts-m5-revoke-"));
+    dirs.push(dir);
+    const configPath = join(dir, "config.json");
+    const tokenPath = join(dir, "tokens.json");
+    writeConfig(defaultConfig(), configPath);
+    writeFileSync(tokenPath, '{"access_token":"fixture-token"}', "utf8");
+
+    const result = runCli(
+      ["auth", "revoke", "--config", configPath, "--json"],
+      { TIDAL_TOKEN_PATH: tokenPath },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(existsSync(tokenPath)).toBe(false);
+    expect(JSON.parse(result.stdout)).toEqual({
+      token_path: tokenPath,
+      local_token_removed: true,
+      provider_revocation_performed: false,
+      provider_writes: 0,
+    });
   });
 
   test("plan create/show and apply dry-run form one JSON-safe workflow", () => {

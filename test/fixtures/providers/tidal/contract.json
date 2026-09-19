@@ -1,0 +1,46 @@
+{
+  "search": {
+    "data": [{ "id": "search-1" }]
+  },
+  "searchAlbumsPage1": {
+    "data": [{ "id": "album-1" }],
+    "links": { "next": "/search-page-2" }
+  },
+  "searchAlbumsPage2": {
+    "data": [{ "id": "album-2" }]
+  },
+  "album1": {
+    "data": {
+      "id": "album-1",
+      "attributes": {
+        "title": "Fixture One",
+        "releaseDate": "2020-01-01",
+        "numberOfItems": 8,
+        "imageLinks": [{ "href": "https://resources.tidal.com/images/fixture-one.jpg" }]
+      }
+    }
+  },
+  "album2": {
+    "data": { "id": "album-2", "attributes": { "title": "Fixture Two" } }
+  },
+  "artists1": {
+    "included": [{ "type": "artists", "attributes": { "name": "Fixture Artist" } }]
+  },
+  "artists2": {
+    "included": [{ "type": "artists", "attributes": { "name": "Another Artist" } }]
+  },
+  "collectionFirst": {
+    "data": {
+      "relationships": {
+        "items": {
+          "data": [{ "type": "albums", "id": "album-1" }],
+          "links": { "next": "/collection-page-2" }
+        }
+      }
+    }
+  },
+  "collectionSecond": {
+    "data": [{ "type": "albums", "id": "album-2" }]
+  },
+  "write": { "data": [] }
+}

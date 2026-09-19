@@ -1,5 +1,11 @@
 import { Database } from "bun:sqlite";
-import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import {
@@ -10,6 +16,7 @@ import {
   validateConfig,
   writeConfig,
 } from "../src/config";
+import { M7Service, restoreDatabaseBackup } from "../src/m7-service";
 import { MatchCache } from "../src/match-cache";
 import { summarizeToken } from "../src/oauth";
 import { SyncStore } from "../src/sync-store";
@@ -41,12 +48,16 @@ if (["help", "--help"].includes(command))
   output(
     {
       commands: [
+        "guided",
+        "dashboard",
+        "start",
         "init",
         "config show",
         "config set",
         "status",
         "doctor",
         "auth tidal",
+        "auth revoke",
         "review",
         "import bandcamp",
         "scan",
@@ -58,13 +69,14 @@ if (["help", "--help"].includes(command))
         "logs",
         "auth status",
         "cache clear",
+        "backup create/restore",
         "export report",
         "completions",
         "tutorial",
         "self-update",
       ],
     },
-    "Usage: bun run sync -- <command> [options]\n\nCommands:\n  init | config show/set | doctor | auth tidal/status\n  import bandcamp | scan | matches list | review\n  plan create/show | apply | verify | status | logs\n  export report | cache clear | completions | tutorial | self-update\n\nGlobal options: --json, --no-color, --quiet, --verbose",
+    "Usage: bandcamp-tidal-sync <command> [options]\n\nStart here:\n  start --open              Check the local setup, then open the dashboard\n  guided                    Interactive home for refresh, review, and plan\n\nCommands:\n  init | config show/set | doctor | auth tidal/status/revoke\n  import bandcamp | scan | matches list | review\n  plan create/show | apply | verify | status | logs\n  export report | cache clear | backup create/restore\n  start | dashboard | completions | tutorial | self-update\n\nGlobal options: --json, --no-color, --quiet, --verbose",
   );
 else if (command === "init") {
   const path = option("--config") ?? configPath();
@@ -108,7 +120,7 @@ else if (command === "init") {
       config.storage.database +
       "\nOutput: " +
       config.storage.output_dir +
-      "\nNext: bun run sync -- tutorial",
+      "\nNext: bandcamp-tidal-sync tutorial",
   );
 } else if (command === "config") {
   const subcommand = rest.shift() ?? "show";
@@ -158,12 +170,35 @@ else if (command === "init") {
   if (subcommand === "tidal") {
     if (!process.env.TIDAL_CLIENT_ID)
       throw new Error(
-        "TIDAL OAuth needs TIDAL_CLIENT_ID. Add it to .env, then rerun `sync auth tidal`. Required scopes: collection.read (read library) and collection.write (add approved albums). The callback stays on localhost.",
+        "TIDAL OAuth needs TIDAL_CLIENT_ID. Add it to .env, then rerun `bandcamp-tidal-sync auth tidal`. Required scopes: collection.read (read library) and collection.write (add approved albums). The callback stays on localhost.",
       );
     console.log(
       "TIDAL OAuth will request collection.read and collection.write. The browser callback is local; no provider writes occur during authorization.",
     );
     await import("../tidal-auth");
+  } else if (subcommand === "revoke") {
+    if (existsSync(tokenPath)) {
+      unlinkSync(tokenPath);
+      output(
+        {
+          token_path: tokenPath,
+          local_token_removed: true,
+          provider_revocation_performed: false,
+          provider_writes: 0,
+        },
+        `Removed local TIDAL token: ${tokenPath}\nTIDAL access was not revoked remotely. Manage access in your TIDAL account settings.\nProvider writes: 0`,
+      );
+    } else {
+      output(
+        {
+          token_path: tokenPath,
+          local_token_removed: false,
+          provider_revocation_performed: false,
+          provider_writes: 0,
+        },
+        `No local TIDAL token found: ${tokenPath}\nManage access in your TIDAL account settings.\nProvider writes: 0`,
+      );
+    }
   } else if (subcommand !== "status")
     throw new Error(`Unknown auth command: ${subcommand}`);
   else {
@@ -334,6 +369,102 @@ else if (command === "init") {
       `Cleared ${cleared} cached entries.`,
     );
   }
+} else if (command === "backup") {
+  const subcommand = rest.shift() ?? "create";
+  if (args.includes("--help")) {
+    output(
+      { commands: ["backup create", "backup restore <backup.sqlite>"] },
+      "Usage: bandcamp-tidal-sync backup create [--out <path>]\n       bandcamp-tidal-sync backup restore <backup.sqlite> --database <target> [--replace] [--yes]",
+    );
+    process.exit(0);
+  }
+  const config = loadConfig(option("--config") ?? configPath());
+  const databasePath =
+    option("--database") ??
+    process.env.BCTS_DATABASE ??
+    config.storage.database;
+  if (subcommand === "create") {
+    if (!existsSync(databasePath))
+      throw new Error(`Database not initialized: ${databasePath}`);
+    const target =
+      option("--out") ??
+      join(
+        config.storage.output_dir,
+        "backups",
+        `bcts-${new Date().toISOString().replaceAll(":", "-")}.sqlite`,
+      );
+    const database = new Database(databasePath);
+    try {
+      const service = new M7Service(database, databasePath, config);
+      const path = service.createBackup(target);
+      output(
+        { path, database: databasePath, credentials_included: false },
+        `Backup created: ${path}\nCredentials included: no`,
+      );
+    } finally {
+      database.close();
+    }
+  } else if (subcommand === "restore") {
+    const source = rest.shift();
+    if (!source)
+      throw new Error(
+        "backup restore requires <backup.sqlite> and a target --database path",
+      );
+    if (existsSync(databasePath) && !args.includes("--replace"))
+      throw new Error(
+        `Target exists: ${databasePath}. Stop the dashboard, review both paths, then add --replace.`,
+      );
+    if (!args.includes("--yes")) {
+      if (!process.stdin.isTTY || !process.stdout.isTTY)
+        throw new Error(
+          "Restore confirmation requires a terminal. Use --yes only after reviewing source and target paths.",
+        );
+      const input = createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+      try {
+        const phrase = `RESTORE ${databasePath}`;
+        const answer = await input.question(
+          `Source: ${source}\nTarget: ${databasePath}\nType ${phrase} to restore: `,
+        );
+        if (answer.trim() !== phrase)
+          throw new Error(
+            "Restore cancelled; the target database was not changed.",
+          );
+      } finally {
+        input.close();
+      }
+    }
+    const result = restoreDatabaseBackup(source, databasePath, {
+      replace: args.includes("--replace"),
+    });
+    const restored = new Database(result.targetPath);
+    try {
+      new M7Service(restored, result.targetPath, config).recordActivity(
+        "backup.restored",
+        "completed",
+        "Restored a validated local database backup.",
+        {
+          sourcePath: result.sourcePath,
+          recoveryBackup: result.recoveryBackup,
+          providerWrites: 0,
+        },
+      );
+    } finally {
+      restored.close();
+    }
+    output(
+      { ...result, provider_writes: 0 },
+      [
+        `Restored database: ${result.targetPath}`,
+        result.recoveryBackup
+          ? `Previous database preserved: ${result.recoveryBackup}`
+          : "No previous target database existed.",
+        "Provider writes: 0",
+      ].join("\n"),
+    );
+  } else throw new Error(`Unknown backup command: ${subcommand}`);
 } else if (command === "export") {
   if ((rest.shift() ?? "report") !== "report")
     throw new Error("Unknown export command");
@@ -360,19 +491,19 @@ else if (command === "init") {
 } else if (command === "completions") {
   const shell = rest.shift() ?? "zsh";
   const commands =
-    "init config status doctor auth import scan matches review plan apply verify logs export cache completions tutorial self-update";
+    "guided dashboard init config status doctor auth import scan matches review plan apply verify logs export cache backup completions tutorial self-update";
   const completion =
     shell === "zsh"
-      ? `#compdef sync\n_sync() { _arguments '1:command:(${commands})'; }\ncompdef _sync sync\n`
+      ? `#compdef bandcamp-tidal-sync\n_bandcamp_tidal_sync() { _arguments '1:command:(${commands})'; }\ncompdef _bandcamp_tidal_sync bandcamp-tidal-sync\n`
       : shell === "bash"
-        ? `complete -W '${commands}' sync\n`
+        ? `complete -W '${commands}' bandcamp-tidal-sync\n`
         : shell === "fish"
           ? `${commands
               .split(" ")
-              .map((item) => `complete -c sync -f -a ${item}`)
+              .map((item) => `complete -c bandcamp-tidal-sync -f -a ${item}`)
               .join("\n")}\n`
           : shell === "powershell"
-            ? `Register-ArgumentCompleter -CommandName sync -ScriptBlock { param($wordToComplete) '${commands}'.Split(' ') }\n`
+            ? `Register-ArgumentCompleter -CommandName bandcamp-tidal-sync -ScriptBlock { param($wordToComplete) '${commands}'.Split(' ') }\n`
             : (() => {
                 throw new Error(`Unsupported shell: ${shell}`);
               })();
