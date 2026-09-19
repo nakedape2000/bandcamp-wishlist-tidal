@@ -35,7 +35,8 @@ describe("M5 configuration contracts", () => {
         .version,
     ).toBe(1);
     expect(readFileSync(path, "utf8")).toContain("Keep provider tokens");
-    expect(statSync(path).mode & 0o777).toBe(0o600);
+    if (process.platform !== "win32")
+      expect(statSync(path).mode & 0o777).toBe(0o600);
     expect(defaultConfig().matching.cache_ttl_days).toBe(30);
     expect(defaultConfig().security.bind_host).toBe("127.0.0.1");
   });

@@ -6,6 +6,7 @@ import { SyncStore } from "../src/sync-store";
 import {
   buildWritePlan,
   hashResponseBody,
+  numberedPlanBatches,
   persistWritePlan,
   planBatches,
 } from "../src/write-orchestrator";
@@ -103,6 +104,32 @@ describe("write orchestration", () => {
     expect(batches[0]?.idempotencyKey).toBe(
       planBatches(plan, 1)[0]?.idempotencyKey,
     );
+  });
+
+  test("keeps original batch numbers when earlier batches are already live", () => {
+    const { reviews } = prepared();
+    const single = buildWritePlan(
+      reviews,
+      defaultConfig(),
+      "2026-09-13T01:00:00.000Z",
+    ).items[0];
+    if (!single) throw new Error("Fixture plan item is missing");
+    const plan = {
+      ...buildWritePlan(reviews, defaultConfig(), "2026-09-13T01:00:00.000Z"),
+      items: ["a", "b", "c", "d"].map((tidalAlbumId, index) => ({
+        ...single,
+        bandcampItemId: index + 1,
+        tidalAlbumId,
+      })),
+      additionCount: 4,
+    };
+    const live = new Set(["a", "b"]);
+    const remaining = numberedPlanBatches(plan, 2).filter((batch) =>
+      batch.albumIds.some((id) => !live.has(id)),
+    );
+    expect(
+      remaining.map((batch) => [batch.batchNumber, batch.albumIds]),
+    ).toEqual([[2, ["c", "d"]]]);
   });
 
   test("hashes response bodies for an audit trail", () => {

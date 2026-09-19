@@ -5,6 +5,8 @@ node_modules/
 tokens.json
 tidal-tokens.json
 output/
+data/
+config.json
 
 
 .env

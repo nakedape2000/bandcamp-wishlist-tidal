@@ -24,8 +24,15 @@ if (process.argv.includes("--verbose")) process.env.BCTS_VERBOSE = "1";
 if (process.argv.includes("--json")) process.env.BCTS_LOG_JSON = "1";
 if (process.env.BCTS_VERBOSE === "1" && !process.argv.includes("--quiet"))
   console.error(`[verbose] command=${command ?? "sync"}`);
-if (["review", "plan", "apply"].includes(command ?? "")) {
-  if (command === "review") await import("./review-cli");
+if (
+  ["guided", "dashboard", "start", "review", "plan", "apply"].includes(
+    command ?? "",
+  )
+) {
+  if (command === "guided") await import("./guided-cli");
+  else if (command === "dashboard") await import("./review-server");
+  else if (command === "start") await import("./launch");
+  else if (command === "review") await import("./review-cli");
   else await import("./write-cli");
 } else if (
   [
@@ -37,6 +44,7 @@ if (["review", "plan", "apply"].includes(command ?? "")) {
     "--help",
     "auth",
     "cache",
+    "backup",
     "export",
     "completions",
     "scan",
@@ -49,7 +57,15 @@ if (["review", "plan", "apply"].includes(command ?? "")) {
   ].includes(command ?? "")
 )
   await import("./modern-cli");
-else await import("./sync");
+else if (command === undefined) await import("./sync");
+else {
+  const hint =
+    command === "sync"
+      ? "The installed command already runs the sync CLI. Use `bandcamp-tidal-sync auth tidal`."
+      : "Run `bandcamp-tidal-sync --help` to list available commands.";
+  console.error(`Unknown command: ${command}\n${hint}`);
+  process.exitCode = 1;
+}
 
 export {};
 
@@ -63,6 +79,8 @@ function findCommandIndex(values: string[]): number {
     "--locale",
     "--bandcamp-user",
     "--from",
+    "--port",
+    "--host",
   ]);
   for (let index = 0; index < values.length; index++) {
     const value = values[index] as string;

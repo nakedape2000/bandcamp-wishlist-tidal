@@ -4,116 +4,116 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
-    <title>BCTS Review Desk</title>
+    <title>Bandcamp to TIDAL</title>
     <link rel="stylesheet" href="/styles.css" />
-    <script type="module" src="/app.js"></script>
   </head>
   <body>
-    <header class="app-header">
-      <div class="brand-block">
+    <header class="topbar">
+      <div class="brand">
         <span class="brand-mark" aria-hidden="true">B/T</span>
-        <div>
-          <strong>Review desk</strong>
-          <span>Bandcamp to TIDAL</span>
-        </div>
+        <div><strong>Bandcamp to TIDAL</strong><span id="connection-label">Connecting to local service</span></div>
       </div>
-      <div class="header-status" aria-live="polite">
-        <span class="safety-dot" aria-hidden="true"></span>
-        <span>Review only</span>
-        <b>0 provider writes</b>
+      <div class="topbar-actions">
+        <span class="safety"><span class="status-dot"></span> Local only</span>
+        <button id="scan-button" class="primary" type="button">Scan now</button>
       </div>
     </header>
 
-    <nav class="view-tabs" aria-label="Views">
-      <button class="view-tab is-active" type="button" data-view="queue">
-        Review queue <span id="queue-count">0</span>
-      </button>
-      <button class="view-tab" type="button" data-view="pending">
-        Pending additions <span id="pending-count">0</span>
-      </button>
+    <nav class="tabs" aria-label="Dashboard sections">
+      <button class="tab active" data-view="overview" type="button">Overview</button>
+      <button class="tab" data-view="review" type="button">Review <span id="review-tab-count" class="count">0</span></button>
+      <button class="tab" data-view="plans" type="button">Add to TIDAL <span id="add-tab-count" class="count">0</span></button>
+      <button class="tab" data-view="activity" type="button">Activity</button>
+      <button class="tab" data-view="settings" type="button">Operations</button>
     </nav>
 
-    <section class="filter-bar" aria-label="Review filters">
-      <label class="search-field">
-        <span class="visually-hidden">Search artist or album</span>
-        <span aria-hidden="true">⌕</span>
-        <input id="search" type="search" placeholder="Artist or album" autocomplete="off" />
-      </label>
-      <label>
-        <span>Status</span>
-        <select id="status-filter">
-          <option value="reviewable">Needs attention</option>
-          <option value="all">All matches</option>
-          <option value="needs_review">Needs review</option>
-          <option value="low_confidence">Low confidence</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-          <option value="deferred">Deferred</option>
-          <option value="unavailable">Unavailable</option>
-        </select>
-      </label>
-      <label>
-        <span>Minimum score</span>
-        <input id="score-filter" type="number" min="0" max="100" step="1" placeholder="0" />
-      </label>
-      <div class="filter-summary" id="filter-summary">Loading library...</div>
-    </section>
+    <main>
+      <section id="overview-view" class="view active" aria-labelledby="overview-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">Current state</p><h1 id="overview-title">Library synchronization</h1></div>
+          <p id="last-run-label" class="muted">No refresh recorded</p>
+        </div>
+        <div id="empty-state" class="empty-state hidden">
+          <strong>No scan has run yet</strong>
+          <p>Start a read-only scan to compare the public Bandcamp wishlist with the TIDAL collection.</p>
+          <button class="primary scan-trigger" type="button">Run first scan</button>
+        </div>
+        <div id="metrics" class="metrics" aria-live="polite"></div>
+        <div class="overview-grid">
+          <section class="panel next-panel">
+            <div class="panel-heading"><div><p class="eyebrow">Next action</p><h2 id="next-action-title">Loading state</h2></div><span class="badge safe">0 provider writes</span></div>
+            <p id="next-action-copy" class="muted"></p>
+            <div id="next-action-buttons" class="button-row"></div>
+          </section>
+          <section class="panel run-panel">
+            <div class="panel-heading"><div><p class="eyebrow">Latest run</p><h2 id="run-status">Not started</h2></div><span id="run-state-badge" class="badge">Idle</span></div>
+            <dl id="run-details" class="details"></dl>
+          </section>
+        </div>
+      </section>
 
-    <main class="workspace" id="queue-view">
-      <aside class="queue-panel" aria-label="Review items">
-        <div id="queue" class="queue-list" role="listbox" aria-label="Albums to review"></div>
-      </aside>
-      <section class="detail-panel" id="detail" aria-live="polite">
-        <div class="empty-state">
-          <span class="empty-glyph" aria-hidden="true">◎</span>
-          <h1>Select a release</h1>
-          <p>Its Bandcamp source and TIDAL candidates will appear here.</p>
+      <section id="review-view" class="view" aria-labelledby="review-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">Human decisions</p><h1 id="review-title">Review uncertain matches</h1></div>
+          <div class="filters">
+            <label>Status<select id="review-filter"><option value="pending">Needs a decision</option><option value="ready_to_add">Approved: ready to add</option><option value="already_saved">Approved: already in TIDAL</option><option value="deferred">Deferred</option><option value="unavailable">Unavailable</option><option value="rejected">Rejected</option><option value="all">All reviewed items</option></select></label>
+            <label>Search<input id="review-search" type="search" placeholder="Artist or title" /></label>
+          </div>
+        </div>
+        <div id="review-list" class="review-list"></div>
+      </section>
+
+      <section id="plans-view" class="view" aria-labelledby="plans-title">
+        <div class="section-heading"><div><p class="eyebrow">Approved matches</p><h1 id="plans-title">Add to TIDAL</h1></div><button id="create-plan-button" class="primary" type="button">Review additions</button></div>
+        <p class="notice">Approving a match does not change TIDAL. Review the albums ready below, then prepare the exact addition only when you want to continue.</p>
+        <section class="addition-section"><div class="panel-heading"><div><h2>Ready to add</h2><p class="muted">Approved matches that are not currently in your TIDAL library.</p></div><span id="ready-additions-count" class="badge">0</span></div><div id="ready-additions" class="decision-list"></div></section>
+        <section class="addition-section"><div class="panel-heading"><div><h2>Already in TIDAL</h2><p class="muted">Approved matches that need no further action.</p></div><span id="already-saved-count" class="badge safe">0</span></div><div id="already-saved-additions" class="decision-list"></div></section>
+        <details class="prepared-history"><summary>Prepared additions history</summary><p class="muted">Each entry freezes an exact set of albums so a confirmed write can be retried safely without adding duplicates.</p><div id="plans-list" class="table-wrap"></div></details>
+      </section>
+
+      <section id="activity-view" class="view" aria-labelledby="activity-title">
+        <div class="section-heading"><div><p class="eyebrow">Audit trail</p><h1 id="activity-title">Activity</h1></div><a class="button" href="/api/report" download="bcts-report.json">Download report</a></div>
+        <div id="activity-list" class="timeline"></div>
+      </section>
+
+      <section id="settings-view" class="view" aria-labelledby="settings-title">
+        <div class="section-heading"><div><p class="eyebrow">Local operations</p><h1 id="settings-title">Schedule, backup, and health</h1></div></div>
+        <div class="operations-grid">
+          <section class="panel">
+            <h2>Read-only schedule</h2><p class="muted">Scheduled runs refresh local state. They never add albums to TIDAL.</p>
+            <form id="schedule-form">
+              <label class="toggle-row"><input id="schedule-enabled" type="checkbox" /><span>Enable scheduled refresh</span></label>
+              <label>Interval in minutes<input id="schedule-interval" type="number" min="5" step="5" value="1440" /></label>
+              <p id="schedule-next" class="muted"></p><button type="submit">Save schedule</button>
+            </form>
+          </section>
+          <section class="panel"><h2>Database backup</h2><p class="muted">Create a permission-protected SQLite copy in the configured output directory.</p><button id="backup-button" type="button">Create backup</button><p id="backup-result" class="muted"></p></section>
+          <section class="panel"><h2>Webhook notification</h2><p class="muted">Optional summary after a scheduled refresh. Tokens and music metadata are excluded.</p><form id="notification-form"><label class="toggle-row"><input id="notification-enabled" type="checkbox" /><span>Enable webhook</span></label><label>HTTPS webhook URL<input id="notification-url" type="url" placeholder="https://example.com/hook" /></label><p id="notification-target" class="muted"></p><button type="submit">Save notification</button></form></section>
+          <section class="panel"><h2>Service health</h2><dl id="health-details" class="details"></dl></section>
         </div>
       </section>
     </main>
 
-    <main class="pending-view" id="pending-view" hidden>
-      <header class="pending-header">
-        <div>
-          <span class="eyebrow">Dry-run diff</span>
-          <h1>Proposed library additions</h1>
-        </div>
-        <dl class="plan-stats">
-          <div><dt>Current library</dt><dd id="library-count">0</dd></div>
-          <div><dt>To add</dt><dd id="addition-count">0</dd></div>
-          <div><dt>Writes now</dt><dd>0</dd></div>
-        </dl>
-      </header>
-      <div id="pending-list" class="pending-list"></div>
-    </main>
-
-    <div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-    <dialog id="edit-dialog">
-      <form method="dialog" id="edit-form">
-        <header>
-          <div>
-            <span class="eyebrow">Matching metadata</span>
-            <h2 class="dialog-title">Edit source fields</h2>
-          </div>
-          <button class="icon-button" id="close-dialog" type="button" aria-label="Close dialog" title="Close">×</button>
-        </header>
-        <label class="dialog-label">Artist<input name="artist" required /></label>
-        <label class="dialog-label">Album title<input name="title" required /></label>
-        <label class="dialog-label">Label hint<input name="label" /></label>
-        <footer>
-          <button class="text-button" id="cancel-edit" type="button">Cancel</button>
-          <button class="primary-button" id="save-edit" type="submit">Save metadata</button>
-        </footer>
+    <dialog id="plan-dialog">
+      <form method="dialog" class="dialog-shell">
+        <div class="dialog-heading"><div><p class="eyebrow">Exact addition</p><h2 id="dialog-title">Prepared addition</h2></div><button class="icon-button" type="submit" value="close" aria-label="Close dialog" title="Close">x</button></div>
+        <div id="plan-detail"></div>
       </form>
     </dialog>
-
-    <template id="empty-template">
-      <div class="empty-state">
-        <span class="empty-glyph" aria-hidden="true">✓</span>
-        <h1>Queue is clear</h1>
-        <p>No releases match the current filters.</p>
-      </div>
-    </template>
+    <dialog id="metadata-dialog">
+      <form id="metadata-form" class="dialog-shell">
+        <div class="dialog-heading"><div><p class="eyebrow">Local correction</p><h2>Edit matching metadata</h2></div><button class="icon-button" type="button" data-close-metadata aria-label="Close dialog" title="Close">x</button></div>
+        <input id="metadata-item-id" type="hidden" />
+        <div class="metadata-fields">
+          <label>Artist<input id="metadata-artist" name="artist" maxlength="500" /></label>
+          <label>Title<input id="metadata-title" name="title" maxlength="500" /></label>
+          <label>Label<input id="metadata-label" name="label" maxlength="500" /></label>
+        </div>
+        <p class="notice">This changes future matching only. Provider writes: 0.</p>
+        <div class="button-row"><button type="button" data-close-metadata>Cancel</button><button class="primary" type="submit">Save correction</button></div>
+      </form>
+    </dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="/app.js"></script>
   </body>
 </html>

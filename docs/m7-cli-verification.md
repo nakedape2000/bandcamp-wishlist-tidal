@@ -67,11 +67,10 @@ provider tests. The default suite must report zero real provider writes.
 ## Real-Account Read-Only Smoke Test
 
 1. Copy the known-good database to a temporary path.
-2. Run `sync guided` or the explicit guided command against that copy.
+2. Run `bandcamp-tidal-sync guided` against that copy.
 3. Confirm the refresh reports the real delta, cached reuse, review queue, and
    proposed additions.
 4. Stop before any apply confirmation.
 5. Record `Provider writes: 0` and the elapsed time.
 
 No real TIDAL write is part of this acceptance runbook.
-

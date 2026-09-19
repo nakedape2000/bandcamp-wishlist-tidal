@@ -1,3 +1,5 @@
+import { join } from "node:path";
+import type { AppConfig } from "./config";
 import { request, requestJson } from "./http";
 import { readTokenFile, type TokenData } from "./secrets";
 
@@ -7,6 +9,19 @@ export interface TidalClientOptions {
   tokenPath?: string;
   countryCode?: string;
   locale?: string;
+}
+
+export function tidalClientOptionsFromConfig(
+  config: AppConfig,
+  environment: Record<string, string | undefined> = process.env,
+): TidalClientOptions {
+  return {
+    tokenPath:
+      environment.TIDAL_TOKEN_PATH ??
+      join(config.storage.output_dir, "tidal-tokens.json"),
+    countryCode: config.providers.tidal.country_code,
+    locale: config.providers.tidal.locale,
+  };
 }
 
 export class TidalClient {
@@ -99,6 +114,12 @@ interface TidalReader {
   get<T>(pathOrUrl: string): Promise<T>;
 }
 
+export interface TidalLibraryVerification {
+  ids: Set<string>;
+  missing: string[];
+  attempts: number;
+}
+
 interface TidalRelationshipDocument {
   data?: Array<{ id?: string; type?: string }>;
   links?: { next?: string | null };
@@ -109,7 +130,7 @@ export async function fetchTidalLibraryIds(
 ): Promise<Set<string>> {
   const initial = await client.get<{
     data?: { relationships?: { items?: TidalRelationshipDocument } };
-  }>("/userCollectionAlbums/me");
+  }>("/userCollectionAlbums/me?include=items");
   const relationship = initial.data?.relationships?.items;
   const ids = new Set<string>();
   for (const item of asArray(relationship?.data)) {
@@ -126,4 +147,34 @@ export async function fetchTidalLibraryIds(
     next = page.links?.next ? absoluteTidalUrl(page.links.next) : null;
   }
   return ids;
+}
+
+export async function verifyTidalLibraryIds(
+  client: TidalReader,
+  requiredIds: Iterable<string>,
+  options: {
+    attempts?: number;
+    baseDelayMs?: number;
+    sleep?: (ms: number) => Promise<void>;
+    onRetry?: (missing: string[], nextAttempt: number) => void;
+  } = {},
+): Promise<TidalLibraryVerification> {
+  const attempts = options.attempts ?? 3;
+  if (!Number.isInteger(attempts) || attempts < 1)
+    throw new Error("Verification attempts must be a positive integer");
+  const required = [...new Set([...requiredIds].map(String))];
+  const sleep =
+    options.sleep ??
+    ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const baseDelayMs = options.baseDelayMs ?? 2_000;
+  let ids = new Set<string>();
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    ids = await fetchTidalLibraryIds(client);
+    const missing = required.filter((id) => !ids.has(id));
+    if (!missing.length || attempt === attempts)
+      return { ids, missing, attempts: attempt };
+    options.onRetry?.(missing, attempt + 1);
+    await sleep(baseDelayMs * 2 ** (attempt - 1));
+  }
+  return { ids, missing: required, attempts };
 }
