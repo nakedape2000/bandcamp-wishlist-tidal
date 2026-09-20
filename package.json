@@ -1,6 +1,6 @@
 {
   "name": "bandcamp-wishlist-tidal",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Safely match a public Bandcamp wishlist with a TIDAL library",
   "type": "module",
   "license": "MIT",

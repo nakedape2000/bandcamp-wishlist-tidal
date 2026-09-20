@@ -36,8 +36,8 @@ service with `Ctrl+C` in the terminal that started it.
 ## Docker
 
 Docker is an alternative for users who already have Docker Desktop or Docker
-Engine with the Compose plugin. From a source checkout or extracted release
-that includes `docker-compose.yml`:
+Engine with the Compose plugin. It runs from a source checkout, which includes
+`docker-compose.yml`:
 
 ```sh
 docker compose config

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 - 2026-09-20
+
+- Added the packaged local dashboard and `start --open` launcher for macOS,
+  Linux, and Windows.
+- Moved new installations to platform-appropriate local data directories while
+  preserving existing project-local configurations.
+- Added Docker, packaged-install, and three-platform CI verification.
+- Added the provider adapter foundation and contributor documentation for future
+  destination services without changing the TIDAL-only product scope.
+
 ## 0.1.1 - 2026-09-16
 
 - Fixed `--help` in the installed CLI so it no longer starts a sync.
