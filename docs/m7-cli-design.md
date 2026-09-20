@@ -124,9 +124,10 @@ No refresh, review, or plan action may call a provider write endpoint.
 ## Apply Boundary
 
 Apply is not part of the default guided path. It opens a separate screen that
-repeats the plan ID, collection, count, and safety warning. It requires the
-existing explicit `--apply` boundary and a deliberate confirmation tied to the
-plan ID. Interactive mode must not use `--yes` as a confirmation shortcut.
+repeats the destination, exact album count, and safety warning. It requires the
+existing explicit `--apply` boundary and a deliberate `y/N` confirmation for
+the displayed selection. Interactive mode must not use `--yes` as a
+confirmation shortcut or ask the user to retype an internal identifier.
 
 The existing live-library recheck, idempotency, batch audit, stop-on-unknown,
 resume, and post-apply verification semantics remain authoritative.
@@ -141,7 +142,7 @@ resume, and post-apply verification semantics remain authoritative.
 - A running refresh is exclusive for the selected database; a second start is
   rejected or coalesced with an explicit message.
 - Missing, expired, or under-scoped authorization explains the next command
-  (`sync auth tidal`) without requesting raw tokens or cookies.
+  (`bandcamp-tidal-sync auth tidal`) without requesting raw tokens or cookies.
 - Provider errors identify whether retrying is safe and preserve the failure in
   the activity log.
 - Terminal width, missing color support, and Unicode limitations must not make
@@ -193,4 +194,3 @@ gate.
 - Automatic approval or silent background writes.
 - TIDAL removal synchronization.
 - Notifications or scheduling; those remain separate M7 slices.
-

@@ -5,8 +5,8 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
+import { defaultApplicationPaths, preferredConfigPath } from "./platform";
 
 export interface AppConfig {
   version: 1;
@@ -31,12 +31,12 @@ export interface AppConfig {
 }
 
 export function defaultConfig(): AppConfig {
-  const root = join(homedir(), ".config", "bandcamp-tidal-sync");
+  const paths = defaultApplicationPaths();
   return {
     version: 1,
     storage: {
-      database: join(root, "data.sqlite"),
-      output_dir: join(root, "output"),
+      database: paths.databasePath,
+      output_dir: paths.outputDirectory,
     },
     providers: {
       bandcamp: { wishlist_source: "browser-export", username: "" },
@@ -111,9 +111,7 @@ export function validateConfig(value: unknown): AppConfig {
   return config as AppConfig;
 }
 
-export function loadConfig(
-  path = process.env.BCTS_CONFIG ?? "./config.json",
-): AppConfig {
+export function loadConfig(path = configPath()): AppConfig {
   if (!existsSync(path))
     return validateConfig(fromEnvironment(defaultConfig()));
   const raw = Bun.JSONC.parse(readFileSync(path, "utf8")) as Partial<AppConfig>;
@@ -139,10 +137,8 @@ export function loadConfig(
   );
 }
 
-export function configPath(
-  path = process.env.BCTS_CONFIG ?? "./config.json",
-): string {
-  return path;
+export function configPath(path?: string): string {
+  return path ?? preferredConfigPath();
 }
 
 export function writeConfig(config: AppConfig, path = configPath()): void {

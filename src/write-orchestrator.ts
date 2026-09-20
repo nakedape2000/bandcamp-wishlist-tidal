@@ -125,6 +125,20 @@ export function planBatches(
   });
 }
 
+export function numberedPlanBatches(
+  plan: WritePlan,
+  size: number,
+): Array<
+  ReturnType<typeof planBatches>[number] & {
+    batchNumber: number;
+  }
+> {
+  return planBatches(plan, size).map((batch, index) => ({
+    ...batch,
+    batchNumber: index + 1,
+  }));
+}
+
 export function hashResponseBody(body: string): string {
   return createHash("sha256").update(body).digest("hex");
 }

@@ -41,6 +41,7 @@ export interface ReviewRecord {
   duplicateEditions: Array<Record<string, unknown>>;
   metadata: Record<string, string>;
   decision: ReviewDecision | null;
+  alreadyInTidal: boolean;
   scannedAt: string;
 }
 
@@ -95,8 +96,16 @@ export class ReviewService {
       LEFT JOIN review_metadata e ON e.bandcamp_item_id = m.bandcamp_item_id
       ORDER BY m.decided_at DESC, m.bandcamp_item_id
     `;
+    const saved = this.currentLibraryIds();
     return (this.database.query(query).all() as MatchRow[])
       .map(toReviewRecord)
+      .map((record) => ({
+        ...record,
+        alreadyInTidal: saved.has(
+          record.decision?.chosenTidalAlbumId ??
+            String(record.bestMatch?.tidal_album_id ?? ""),
+        ),
+      }))
       .filter((record) => matchesFilters(record, filters));
   }
 
@@ -205,18 +214,7 @@ export class ReviewService {
   }
 
   pendingPlan(): PendingWritePlan {
-    const latest = this.database
-      .query(
-        "SELECT payload FROM tidal_library_snapshots ORDER BY snapshot_id DESC LIMIT 1",
-      )
-      .get() as { payload: string } | null;
-    const saved = new Set(
-      latest
-        ? (JSON.parse(latest.payload) as Array<Record<string, unknown>>)
-            .map((album) => String(album.tidal_album_id ?? ""))
-            .filter(Boolean)
-        : [],
-    );
+    const saved = this.currentLibraryIds();
     const additionIds = new Set<string>();
     const additions = this.list().filter((record) => {
       const id = record.decision?.chosenTidalAlbumId;
@@ -236,6 +234,21 @@ export class ReviewService {
       additionCount: additions.length,
       providerWrites: 0,
     };
+  }
+
+  private currentLibraryIds(): Set<string> {
+    const latest = this.database
+      .query(
+        "SELECT payload FROM tidal_library_snapshots ORDER BY snapshot_id DESC LIMIT 1",
+      )
+      .get() as { payload: string } | null;
+    return new Set(
+      latest
+        ? (JSON.parse(latest.payload) as Array<Record<string, unknown>>)
+            .map((album) => String(album.tidal_album_id ?? ""))
+            .filter(Boolean)
+        : [],
+    );
   }
 
   exportDecisions(
@@ -383,6 +396,7 @@ function toReviewRecord(row: MatchRow): ReviewRecord {
           updatedAt: row.review_updated_at as string,
         }
       : null,
+    alreadyInTidal: false,
     scannedAt: row.decided_at,
   };
 }

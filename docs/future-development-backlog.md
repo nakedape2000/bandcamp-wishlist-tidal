@@ -1,8 +1,8 @@
 # Bandcamp → TIDAL Sync
 ## Public Product Backlog and Development Plan
 
-**Status:** Planning baseline
-**Date:** 2026-09-12
+**Status:** M9 complete; M10+ planned
+**Date:** 2026-09-18
 **Project:** `bandcamp-tidal-sync`
 
 ## Vision
@@ -11,7 +11,7 @@ Build a self-hosted, open-source tool that periodically discovers albums saved o
 
 The tool should be useful as:
 
-- a polished CLI for setup, scanning, review, syncing, and diagnostics;
+- a stable CLI for automation, diagnostics, and advanced workflows;
 - an optional local web interface for visual review and one-click workflows;
 - a reusable public project that other people can configure with their own credentials and data;
 - a cautious synchronization utility rather than an uncontrolled “copy everything” automation.
@@ -63,7 +63,9 @@ sync status
   → show history, pending reviews, failures, and last successful run
 ```
 
-The same operations should be available through a local web UI, but the CLI remains the canonical interface and automation surface.
+The same operations should be available through a local web UI. The CLI remains
+the stable automation and recovery surface; new user-facing workflow work is
+prioritized in the web UI.
 
 # Milestones
 
@@ -467,9 +469,9 @@ zero provider writes.
 
 ## M7 — Optional local web application and scheduling
 
-**Status:** M7.0 incremental refresh is implemented and accepted against a
-real Bandcamp/TIDAL account; dashboard and later slices remain to be
-implemented. M6 release acceptance is complete.
+**Status:** M7.0 incremental refresh and the M7.1–M7.9 dashboard, guided CLI,
+recovery, scheduling, webhook, packaging, and acceptance work are implemented
+and verified on fixture/disposable data. M6 release acceptance is complete.
 See the [M7 design](m7-design.md) and [M7 verification runbook](m7-verification.md).
 
 **Goal:** Make recurring use feel like an appliance while preserving self-hosting.
@@ -502,16 +504,18 @@ memorize multiple commands. See the [guided CLI design](m7-cli-design.md) and
 - Preserve direct commands, JSON automation, non-TTY determinism, and existing
   OAuth, SQLite, collection, and audit semantics.
 
-- Add a local dashboard with last run, pending review count, proposed additions, and failures.
-- Add a “Scan now” button.
-- Add a “Review matches” queue.
-- Add a “Create plan” button.
-- Add a separate, conspicuous “Apply approved plan” action.
-- Add scheduled scans with a visible next-run time.
-- Add notifications through desktop notifications, email, or webhook as opt-in features.
-- Add an activity log and downloadable reports.
-- Add health/readiness endpoints for container deployments.
-- Add backup/export of the local database and decisions.
+- [x] Add a local dashboard with last run, pending review count, proposed additions, and failures.
+- [x] Add a “Scan now” button.
+- [x] Add a “Review matches” queue.
+- [x] Add a “Create plan” button.
+- [x] Add a separate, conspicuous “Apply approved plan” action.
+- [x] Add scheduled scans with a visible next-run time.
+- [x] Add opt-in webhook notifications with redacted summaries.
+- [x] Add an activity log and downloadable reports.
+- [x] Add health/readiness endpoints for container deployments.
+- [x] Add backup/export and validated restore of the local database.
+- [x] Add `sync guided` with TTY/non-TTY safety and direct-command parity.
+- [x] Package dashboard assets and run fixture, mocked-apply, Docker, and browser acceptance.
 
 ### Security requirements
 
@@ -522,20 +526,235 @@ memorize multiple commands. See the [guided CLI design](m7-cli-design.md) and
 - Provide a logout/revoke-token action.
 - Make remote access an advanced configuration with explicit warnings.
 
-## M8 — Community and extensibility
+## M8 — Provider extension foundation
 
-**Goal:** Enable contributions and future provider integrations.
+**Status:** Implemented. This milestone prepares the codebase for Spotify,
+Apple Music, and other services without implementing those integrations.
 
-### Tasks
+**Goal:** Make a second music provider an understandable, testable addition to
+the project while keeping the current Bandcamp → TIDAL workflow stable.
 
-- Define provider adapter interfaces.
-- Document how to add a new music service.
-- Separate provider-neutral matching and sync logic from API adapters.
-- Add plugin/version compatibility rules.
-- Create a sanitized fixture contribution guide.
-- Add a public roadmap and decision log.
-- Collect opt-in anonymous diagnostics only if strictly necessary and clearly disclosed.
-- Add translations after the English workflow stabilizes.
+### Scope
+
+1. Define a small provider contract for catalogue search, album identity,
+   artwork/link metadata, collection reads, collection writes, authorization
+   status, and capability reporting.
+2. Separate provider-neutral matching, review decisions, immutable plans,
+   audit records, and verification from provider HTTP details.
+3. Move the current TIDAL behavior behind the contract without changing the
+   user-facing workflow or write safety rules.
+4. Keep Bandcamp as a source adapter with a clear boundary from destination
+   providers. A future provider may be a source, destination, or both only if
+   it implements the relevant capabilities.
+5. Define provider identifiers, capability versions, configuration namespaces,
+   and migration rules for stored plans and snapshots.
+6. Document a sanitized fixture and contract-test format that contributors can
+   use without real accounts or credentials.
+7. Add a contribution guide explaining how to propose a provider, what API
+   access is required, how terms and rate limits are checked, and how secrets
+   stay local.
+8. Update the public roadmap and decision log to describe the extension point.
+
+### Explicit non-goals
+
+- No Spotify integration.
+- No Apple Music integration.
+- No new OAuth flows for future providers.
+- No plugin marketplace or dynamic code loading.
+- No provider-specific UI branches beyond capability-aware labels and links.
+- No telemetry or anonymous diagnostics. Those require a separate, explicit
+  privacy decision.
+
+### Acceptance criteria
+
+- A provider adapter contract is documented with request/response examples
+  using sanitized fixtures.
+- TIDAL passes the contract tests for search, collection read, collection
+  write, authorization status, pagination, retryable errors, and unknown
+  outcomes.
+- Core matching, review, plan, apply, and audit tests run without importing
+  TIDAL-specific HTTP code.
+- An unsupported capability produces a clear user-facing message and cannot
+  reach a write endpoint.
+- Existing TIDAL plans, snapshots, and audit records remain readable after the
+  adapter split.
+- The full M7 verification gate and a fixture-only provider contract suite pass
+  with zero real provider writes.
+
+### Deliverables
+
+- Provider contract and compatibility note.
+- TIDAL adapter conformance tests and sanitized fixtures.
+- Contributor guide for adding a provider.
+- Migration note for provider IDs and stored snapshots.
+- Updated architecture diagram and roadmap.
+
+## M9 — Cross-platform installation and first-run foundation
+
+**Status:** Implemented. Cross-platform clean-install coverage, local launcher,
+and migration/rollback guidance are available.
+
+**Goal:** Let a new user install and start the local service on macOS,
+Windows, and Linux with the same documented path.
+
+### Scope
+
+- Choose and document the supported installation channels: release archive,
+  package-manager path where practical, and Docker.
+- Provide platform-specific launch commands that open or print the local web
+  address.
+- Detect Bun/runtime, port, filesystem, Docker, and permission problems before
+  the UI starts.
+- Use one predictable data directory and explain where the database, token
+  files, backups, and logs live on each operating system.
+- Make upgrades and rollback recoverable, including database migrations and
+  release compatibility checks.
+- Exercise clean installs in CI or disposable machines for all three platforms
+  where hosted runners permit it.
+
+### Acceptance criteria
+
+- A fresh user can install, start, and stop the service using one documented
+  path for each supported platform.
+- The launcher reports an actionable error for missing runtime, occupied port,
+  unwritable data directory, invalid config, or unavailable Docker.
+- Existing local data survives an upgrade and a documented rollback restores
+  the previous release.
+- Package smoke tests verify that the installed artifact contains everything
+  needed for the web UI and CLI.
+
+## M10 — Web onboarding and account setup
+
+**Status:** Planned. This is the first milestone aimed primarily at new users.
+
+**Goal:** Replace command-line-only first-run configuration with a short,
+guided local web setup.
+
+### Scope
+
+1. Welcome screen: explain local-only operation, where data is stored, and the
+   read/write safety model.
+2. Bandcamp step: enter the public wishlist username or URL, validate it, and
+   show the resolved public source before saving.
+3. TIDAL step: start OAuth in the browser, request read/write scopes with plain
+   language, show success/expiry/scope status, and provide reauthorization.
+4. Storage step: show the data directory, database path, backup behavior, and
+   an optional change before initialization.
+5. First sync step: explain that a large TIDAL library may take time, display
+   live progress, and allow safe cancellation.
+6. Completion screen: show wishlist count, library count, match categories,
+   pending review count, and the next recommended action.
+7. Re-entry: reopening the app must detect completed setup and take the user to
+   the dashboard; expired authorization must route to reauthorization without
+   losing local decisions.
+
+### Acceptance criteria
+
+- A new user can complete setup without opening a terminal after launching the
+  service.
+- Invalid Bandcamp input, cancelled OAuth, missing scopes, and expired tokens
+  each produce a specific recovery action.
+- Setup never sends a TIDAL write request.
+- Refresh can be cancelled and resumed without corrupting the database.
+- The UI explains token expiry and shows the exact reauthorization action.
+- A fixture onboarding run is deterministic and a mocked-provider run covers
+  success, 401, timeout, and cancellation.
+
+## M11 — Observable sync and progress experience
+
+**Status:** Planned. This milestone turns long-running work into an operation
+the user can understand and trust.
+
+**Goal:** Make scans feel alive, resumable, and honest about what is happening.
+
+### Scope
+
+- Show phases: loading wishlist, checking cache, searching catalogue, reading
+  the collection, matching, saving state, and finishing.
+- Show elapsed time, current phase, items processed/total when known, rate,
+  retry count, and the last meaningful activity.
+- Distinguish slow work from a stalled or failed operation.
+- Surface 401 reauthorization, rate limits, network failures, and partial
+  completion with a clear next action.
+- Persist operation checkpoints and resume from the last safe boundary.
+- Keep all scan/review/plan operations read-only; show provider write count
+  explicitly in every completion summary.
+- Provide a compact activity history with filters for scan, review, plan, apply,
+  and authorization events.
+
+### Acceptance criteria
+
+- A large-library sync visibly changes progress at least once per meaningful
+  phase and never appears frozen without an explanation.
+- A refresh interrupted during a read resumes safely and does not duplicate
+  provider work.
+- A token expiry pauses with a reauthorization action and preserves progress.
+- Completion shows exact counts for wishlist items, removed items, matches,
+  needs review, low confidence, already saved, proposed additions, and provider
+  writes.
+- Browser acceptance covers narrow screens, refresh, cancellation, retry, and
+  failure recovery.
+
+## M12 — Simple review dashboard and first-run product polish
+
+**Status:** Planned. This milestone consolidates the product experience after
+the installation and onboarding foundations exist.
+
+**Goal:** Make the core result understandable at a glance for a non-technical
+user.
+
+### Scope
+
+- Use plain labels and short explanations for high-confidence, needs review,
+  low-confidence, unavailable, deferred, already saved, and ready to add.
+- Present Bandcamp and the selected provider candidate side by side, including
+  artwork, title, artist, score, explanation, and external links.
+- Make the safe path visually obvious: review → approve locally → inspect exact
+  additions → explicitly apply.
+- Put token state, last refresh, next action, and unresolved failures near the
+  top of the dashboard.
+- Provide empty states, loading states, retry states, and success summaries
+  that tell the user what to do next.
+- Add accessible keyboard navigation, screen-reader labels, contrast checks,
+  and responsive layouts for laptop and small screens.
+- Keep advanced technical details available behind expandable sections rather
+  than in the primary flow.
+
+### Acceptance criteria
+
+- A first-time user can explain what the counts mean and identify the next
+  action without reading project documentation.
+- A user can distinguish a likely match from a candidate requiring review using
+  title, artist, artwork, score, and explanation.
+- No screen suggests that approval alone changes a provider collection.
+- The full flow works at desktop and narrow mobile widths without clipped
+  controls or ambiguous states.
+- Usability acceptance is performed with a short scripted walkthrough and a
+  small set of real read-only data.
+
+## M13 — Additional provider integrations (separate projects)
+
+**Status:** Future. Each provider is its own milestone after M8 and after the
+onboarding/capability model is stable.
+
+**Goal:** Add destinations such as Spotify or Apple Music without weakening the
+shared safety model.
+
+### Rules for each provider
+
+- Confirm that the provider supports the required collection API and allowed
+  use case before implementation.
+- Implement the M8 adapter contract and capability checks first.
+- Add sanitized fixtures, contract tests, OAuth diagnostics, rate-limit
+  handling, and read-only scan acceptance before enabling writes.
+- Reuse the same review, immutable plan, explicit confirmation, idempotency,
+  audit, and verification flow.
+- Release each provider behind an explicit configuration choice and document
+  its scopes, limitations, and data handling.
+
+The first provider candidate should be selected only after a short feasibility
+spike confirms API access, collection semantics, artwork links, rate limits,
+and terms of service. Provider selection is deliberately not part of M8.
 
 # Technical architecture
 
@@ -669,23 +888,36 @@ applying → retryable_failure | unknown_outcome | permanent_failure
 - Stable provider interface.
 - Public documentation and contribution workflow.
 
+### v1.1 — Friendly self-hosted product
+
+- Cross-platform installation and upgrade path.
+- Web-based first-run onboarding.
+- Visible long-running sync progress and recovery.
+- Simple review dashboard with clear counts and next actions.
+
+### v1.2+ — Additional providers
+
+- One provider per milestone after an API feasibility review.
+- Spotify, Apple Music, or another service only when its collection API,
+  authorization model, terms, and write semantics satisfy the shared provider
+  contract.
+
 ## Immediate next sprint
 
-The highest-value next sprint should be:
+M7, M8, and M9 are complete. The next sprint moves directly into the web-first
+product milestones:
 
-1. Start M7 with a dashboard showing the last run, pending reviews, proposed
-   additions, failures, and the next scheduled scan.
-2. Add explicit “Scan now”, “Review matches”, and “Create plan” actions while
-   keeping all provider writes disabled in those flows.
-3. Add the separate, conspicuous apply flow backed by the existing immutable-plan
-   and confirmation boundary.
-4. Add container health/readiness endpoints, database backup/export, and an
-   activity log with downloadable reports.
-5. Add opt-in scheduling and notifications only after the dashboard and recovery
-   paths have acceptance coverage.
+1. M10: build the web onboarding wizard for Bandcamp source setup, TIDAL OAuth,
+   storage, and the first read-only sync.
+2. M11: add visible phases, progress, cancellation, reauthorization, and
+   resumable recovery for long-running syncs.
+3. M12: polish the review dashboard around simple counts, artwork, decisions,
+   and the explicit apply boundary.
+4. Only after those milestones, run a short feasibility spike for the first
+   additional provider and schedule it as M13.
 
-This order extends the optional local web application while retaining the CLI
-as the canonical automation surface.
+The CLI will receive maintenance and compatibility fixes during this sequence;
+new workflow investment stays in the web interface.
 
 ## Definition of done for recurring use
 
